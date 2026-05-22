@@ -34,4 +34,9 @@ def create_refresh_token(user_id: UUID) -> str:
 
 
 def decode_token(token: str) -> dict:
-    return jwt.decode(token, settings.secret_key, algorithms=["HS256"])
+    return jwt.decode(
+        token,
+        settings.secret_key,
+        algorithms=["HS256"],
+        options={"require": ["exp", "sub"]},
+    )

@@ -33,3 +33,26 @@ def test_decode_invalid_token_raises():
     import jwt
     with pytest.raises(jwt.InvalidTokenError):
         decode_token("not.a.valid.token")
+
+
+def test_decode_expired_token_raises():
+    import jwt as pyjwt
+    from datetime import datetime, timedelta, timezone
+    user_id = uuid.uuid4()
+    payload = {
+        "sub": str(user_id),
+        "exp": datetime.now(timezone.utc) - timedelta(seconds=1),
+        "type": "access",
+    }
+    expired_token = pyjwt.encode(payload, "testsecretkey", algorithm="HS256")
+    with pytest.raises(pyjwt.ExpiredSignatureError):
+        decode_token(expired_token)
+
+
+def test_decode_tampered_token_raises():
+    import jwt as pyjwt
+    user_id = uuid.uuid4()
+    token = create_access_token(user_id)
+    tampered = token[:-4] + "xxxx"
+    with pytest.raises(pyjwt.InvalidTokenError):
+        decode_token(tampered)
