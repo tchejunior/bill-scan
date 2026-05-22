@@ -26,8 +26,12 @@ def upgrade():
     )
     op.create_index("ix_users_email", "users", ["email"], unique=True)
 
-    receipt_status = sa.Enum("pending", "processing", "processed", "failed",
-                              name="receiptstatus")
+    # create_type=False: we manage enum creation explicitly so SQLAlchemy's
+    # create_table event doesn't double-create them.
+    receipt_status = sa.Enum(
+        "pending", "processing", "processed", "failed",
+        name="receiptstatus", create_type=False,
+    )
     receipt_status.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
@@ -42,8 +46,10 @@ def upgrade():
     )
     op.create_index("ix_receipts_user_id", "receipts", ["user_id"])
 
-    payment_method = sa.Enum("cash", "credit", "debit", "pix", "boleto", "other",
-                              name="paymentmethod")
+    payment_method = sa.Enum(
+        "cash", "credit", "debit", "pix", "boleto", "other",
+        name="paymentmethod", create_type=False,
+    )
     payment_method.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
