@@ -1,5 +1,4 @@
-import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 
 def test_events_requires_auth(client):
@@ -8,16 +7,20 @@ def test_events_requires_auth(client):
 
 
 def test_events_returns_event_stream(auth_client):
-    # Mock Redis so pubsub.listen() exits immediately instead of blocking forever.
-    # Real Redis integration is covered by manual / E2E testing.
+    # r.pubsub() is a sync call so r must be MagicMock (not AsyncMock).
+    # Only the awaited methods (subscribe, unsubscribe, aclose) need AsyncMock.
     async def _empty_listen():
         return
-        yield  # make it an async generator
+        yield
 
-    mock_pubsub = AsyncMock()
+    mock_pubsub = MagicMock()
+    mock_pubsub.subscribe = AsyncMock()
+    mock_pubsub.unsubscribe = AsyncMock()
     mock_pubsub.listen = _empty_listen
-    mock_redis = AsyncMock()
+
+    mock_redis = MagicMock()
     mock_redis.pubsub.return_value = mock_pubsub
+    mock_redis.aclose = AsyncMock()
 
     with patch("app.api.events.aioredis.from_url", return_value=mock_redis):
         with auth_client.stream("GET", "/api/events") as resp:

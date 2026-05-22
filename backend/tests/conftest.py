@@ -16,6 +16,7 @@ TEST_DB_URL = os.environ.get(
 @pytest.fixture(scope="session")
 def engine():
     _engine = create_engine(TEST_DB_URL)
+    Base.metadata.drop_all(_engine)   # clean slate — handles crashed/incomplete prior runs
     Base.metadata.create_all(_engine)
     yield _engine
     Base.metadata.drop_all(_engine)
