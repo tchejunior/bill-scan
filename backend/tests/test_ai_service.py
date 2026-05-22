@@ -1,3 +1,4 @@
+import pytest
 from unittest.mock import MagicMock, patch
 from app.services.ai import extract_receipt_data
 
@@ -42,6 +43,5 @@ def test_extract_handles_markdown_code_block():
 def test_extract_raises_on_invalid_json():
     with patch("app.services.ai.anthropic.Anthropic") as MockClient:
         MockClient.return_value.messages.create.return_value = _mock_claude_response("not json at all")
-        import pytest
         with pytest.raises(Exception):
             extract_receipt_data(b"fake-image-bytes")

@@ -40,6 +40,8 @@ def extract_receipt_data(image_data: bytes) -> dict:
         }],
     )
 
+    if not message.content or not hasattr(message.content[0], "text"):
+        raise ValueError("Unexpected response structure from Claude API")
     text = message.content[0].text.strip()
     # Strip markdown code fences if present
     if text.startswith("```"):
