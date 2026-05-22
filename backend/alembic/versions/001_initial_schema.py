@@ -13,8 +13,35 @@ down_revision = None
 branch_labels = None
 depends_on = None
 
+# Reusable enum column types — create_type=False because we manage creation
+# via raw SQL below so the _on_table_create event never fires.
+_receipt_status = postgresql.ENUM(
+    "pending", "processing", "processed", "failed",
+    name="receiptstatus", create_type=False,
+)
+_payment_method = postgresql.ENUM(
+    "cash", "credit", "debit", "pix", "boleto", "other",
+    name="paymentmethod", create_type=False,
+)
+
 
 def upgrade():
+    conn = op.get_bind()
+
+    # PL/pgSQL exception blocks are idempotent — safe to re-run
+    conn.execute(sa.text("""
+        DO $$ BEGIN
+            CREATE TYPE receiptstatus AS ENUM ('pending', 'processing', 'processed', 'failed');
+        EXCEPTION WHEN duplicate_object THEN null;
+        END $$
+    """))
+    conn.execute(sa.text("""
+        DO $$ BEGIN
+            CREATE TYPE paymentmethod AS ENUM ('cash', 'credit', 'debit', 'pix', 'boleto', 'other');
+        EXCEPTION WHEN duplicate_object THEN null;
+        END $$
+    """))
+
     op.create_table(
         "users",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -26,31 +53,17 @@ def upgrade():
     )
     op.create_index("ix_users_email", "users", ["email"], unique=True)
 
-    # create_type=False: we manage enum creation explicitly so SQLAlchemy's
-    # create_table event doesn't double-create them.
-    receipt_status = sa.Enum(
-        "pending", "processing", "processed", "failed",
-        name="receiptstatus", create_type=False,
-    )
-    receipt_status.create(op.get_bind(), checkfirst=True)
-
     op.create_table(
         "receipts",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
         sa.Column("image_path", sa.String(), nullable=False),
-        sa.Column("status", receipt_status, nullable=False, server_default="pending"),
+        sa.Column("status", _receipt_status, nullable=False, server_default="pending"),
         sa.Column("uploaded_at", sa.DateTime(timezone=True)),
         sa.Column("processed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("raw_ai_output", postgresql.JSONB(), nullable=True),
     )
     op.create_index("ix_receipts_user_id", "receipts", ["user_id"])
-
-    payment_method = sa.Enum(
-        "cash", "credit", "debit", "pix", "boleto", "other",
-        name="paymentmethod", create_type=False,
-    )
-    payment_method.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "expenses",
@@ -62,7 +75,7 @@ def upgrade():
         sa.Column("total_amount", sa.Numeric(10, 2), nullable=False),
         sa.Column("currency", sa.String(3), server_default="BRL"),
         sa.Column("category", sa.String(), nullable=True),
-        sa.Column("payment_method", payment_method, nullable=True),
+        sa.Column("payment_method", _payment_method, nullable=True),
         sa.Column("notes", sa.Text(), nullable=True),
         sa.Column("is_manual", sa.Boolean(), server_default="false"),
         sa.Column("created_at", sa.DateTime(timezone=True)),
@@ -79,5 +92,5 @@ def downgrade():
     op.drop_table("expenses")
     op.drop_table("receipts")
     op.drop_table("users")
-    sa.Enum(name="paymentmethod").drop(op.get_bind())
-    sa.Enum(name="receiptstatus").drop(op.get_bind())
+    op.get_bind().execute(sa.text("DROP TYPE IF EXISTS paymentmethod"))
+    op.get_bind().execute(sa.text("DROP TYPE IF EXISTS receiptstatus"))
