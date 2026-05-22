@@ -3,7 +3,7 @@ import redis
 from datetime import datetime, timezone, date
 from sqlalchemy.orm import Session
 from app.worker.celery_app import celery
-from app.database import SessionLocal
+from app.database import _get_session_factory
 from app.models.receipt import Receipt, ReceiptStatus
 from app.models.expense import Expense, PaymentMethod
 from app.services.ai import extract_receipt_data
@@ -77,7 +77,7 @@ def _run_process_receipt(receipt_id: str, db: Session) -> None:
 
 @celery.task(bind=True, max_retries=3, default_retry_delay=30)
 def process_receipt(self, receipt_id: str):
-    db = SessionLocal()
+    db = _get_session_factory()()
     try:
         _run_process_receipt(receipt_id, db)
     except Exception as exc:
