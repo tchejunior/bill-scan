@@ -7,6 +7,8 @@ celery = Celery(
     backend=settings.redis_url,
     include=["app.worker.tasks"],
 )
-celery.conf.task_serializer = "json"
-celery.conf.result_serializer = "json"
-celery.conf.accept_content = ["json"]
+celery.conf.update(
+    task_serializer="json",
+    result_serializer="json",
+    accept_content=["json"],
+)

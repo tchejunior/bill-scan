@@ -16,7 +16,7 @@ _ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic"}
 
 
 @router.post("", response_model=ReceiptRead, status_code=202)
-def upload_receipt(
+async def upload_receipt(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -25,7 +25,7 @@ def upload_receipt(
         raise HTTPException(status_code=415, detail="Unsupported image type")
 
     receipt_id = uuid.uuid4()
-    raw = file.file.read()
+    raw = await file.read()
     webp_data = process_image(raw)
     image_path = storage.save(str(current_user.id), str(receipt_id), webp_data)
 
@@ -50,7 +50,7 @@ def list_receipts(
 
 @router.get("/{receipt_id}", response_model=ReceiptRead)
 def get_receipt(
-    receipt_id: str,
+    receipt_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
