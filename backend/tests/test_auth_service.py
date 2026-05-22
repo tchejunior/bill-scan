@@ -2,6 +2,7 @@ from app.services.auth import (
     hash_password, verify_password,
     create_access_token, create_refresh_token, decode_token,
 )
+from app.config import settings
 import uuid
 import pytest
 
@@ -44,7 +45,7 @@ def test_decode_expired_token_raises():
         "exp": datetime.now(timezone.utc) - timedelta(seconds=1),
         "type": "access",
     }
-    expired_token = pyjwt.encode(payload, "testsecretkey", algorithm="HS256")
+    expired_token = pyjwt.encode(payload, settings.secret_key, algorithm="HS256")
     with pytest.raises(pyjwt.ExpiredSignatureError):
         decode_token(expired_token)
 
