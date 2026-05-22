@@ -1,10 +1,11 @@
 from fastapi import FastAPI, Depends
-from app.api import auth
+from app.api import auth, receipts
 from app.api.deps import get_current_user
 from app.models.user import User
 
 app = FastAPI(title="Recibo42 API")
 app.include_router(auth.router)
+app.include_router(receipts.router)
 
 
 @app.get("/api/health")
