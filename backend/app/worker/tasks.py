@@ -23,7 +23,7 @@ _PM_MAP = {
 def _run_process_receipt(receipt_id: str, db: Session) -> None:
     receipt = db.query(Receipt).filter(Receipt.id == receipt_id).first()
     if not receipt:
-        return
+        raise ValueError(f"Receipt {receipt_id} not found")
 
     receipt.status = ReceiptStatus.processing
     db.commit()
@@ -62,14 +62,17 @@ def _run_process_receipt(receipt_id: str, db: Session) -> None:
     db.refresh(expense)
 
     r = redis.from_url(settings.redis_url)
-    r.publish(
-        f"user:{receipt.user_id}:events",
-        json.dumps({
-            "type": "receipt.processed",
-            "receipt_id": str(receipt.id),
-            "expense_id": str(expense.id),
-        }),
-    )
+    try:
+        r.publish(
+            f"user:{receipt.user_id}:events",
+            json.dumps({
+                "type": "receipt.processed",
+                "receipt_id": str(receipt.id),
+                "expense_id": str(expense.id),
+            }),
+        )
+    finally:
+        r.close()
 
 
 @celery.task(bind=True, max_retries=3, default_retry_delay=30)
