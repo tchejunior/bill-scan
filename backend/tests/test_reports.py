@@ -1,18 +1,19 @@
-from datetime import date
+from datetime import date, timedelta
 
 
 def test_report_summary_returns_totals(auth_client):
-    today = str(date.today())
+    # Use a date in the past that no other test would use, to avoid cross-test data leakage
+    isolated_date = str(date(2020, 1, 15))
     auth_client.post("/api/expenses", json={
-        "vendor": "A", "date": today, "total_amount": "100.00",
+        "vendor": "A", "date": isolated_date, "total_amount": "100.00",
         "category": "Alimentação", "payment_method": "pix",
     })
     auth_client.post("/api/expenses", json={
-        "vendor": "B", "date": today, "total_amount": "50.00",
+        "vendor": "B", "date": isolated_date, "total_amount": "50.00",
         "category": "Transporte", "payment_method": "cash",
     })
 
-    resp = auth_client.get(f"/api/reports/summary?from_date={today}&to_date={today}")
+    resp = auth_client.get(f"/api/reports/summary?from_date={isolated_date}&to_date={isolated_date}")
     assert resp.status_code == 200
     body = resp.json()
     assert body["total_amount"] == "150.00"

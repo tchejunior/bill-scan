@@ -8,7 +8,7 @@ _KNOWN_WEAK_KEYS = {
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", secrets_dir="/run/secrets")
 
     database_url: str
     secret_key: str
