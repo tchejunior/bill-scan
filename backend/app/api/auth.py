@@ -52,7 +52,7 @@ def refresh(
     if payload.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Wrong token type")
     user = db.query(User).filter(User.id == payload["sub"]).first()
-    if not user:
+    if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found")
     response.set_cookie("access_token", create_access_token(user.id),
                         max_age=900, **_COOKIE_OPTS)
@@ -61,6 +61,6 @@ def refresh(
 
 @router.post("/logout")
 def logout(response: Response):
-    response.delete_cookie("access_token")
-    response.delete_cookie("refresh_token", path="/api/auth/refresh")
+    response.delete_cookie("access_token", **_COOKIE_OPTS)
+    response.delete_cookie("refresh_token", path="/api/auth/refresh", **_COOKIE_OPTS)
     return {"detail": "Logged out"}

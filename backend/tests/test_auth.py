@@ -48,3 +48,29 @@ def test_logout(auth_client):
 def test_protected_route_requires_auth(client):
     resp = client.get("/api/expenses")
     assert resp.status_code == 401
+
+
+def test_refresh_success(client):
+    client.post("/api/auth/register", json={
+        "email": "refresh@recibo42.com", "password": "password123"
+    })
+    login_resp = client.post("/api/auth/login", json={
+        "email": "refresh@recibo42.com", "password": "password123"
+    })
+    refresh_token = login_resp.cookies.get("refresh_token")
+    client.cookies.set("refresh_token", refresh_token)
+    resp = client.post("/api/auth/refresh")
+    assert resp.status_code == 200
+    assert "access_token" in resp.cookies
+
+
+def test_protected_route_with_valid_auth(auth_client):
+    resp = auth_client.get("/api/expenses")
+    assert resp.status_code == 200
+
+
+def test_register_short_password_rejected(client):
+    resp = client.post("/api/auth/register", json={
+        "email": "short@recibo42.com", "password": "abc"
+    })
+    assert resp.status_code == 422
