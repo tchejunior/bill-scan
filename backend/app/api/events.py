@@ -23,7 +23,9 @@ async def event_stream(current_user=Depends(get_current_user)):
             async for message in pubsub.listen():
                 if message["type"] == "message":
                     yield f"data: {message['data']}\n\n"
-                await asyncio.sleep(0)  # yield control
+                    await asyncio.sleep(0)
+        except BaseException:
+            raise
         finally:
             await pubsub.unsubscribe(channel)
             await r.aclose()
