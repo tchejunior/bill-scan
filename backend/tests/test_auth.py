@@ -45,7 +45,6 @@ def test_logout(auth_client):
     assert auth_client.cookies.get("access_token") is None
 
 
-@pytest.mark.skip(reason="GET /api/expenses not implemented until Task 10")
 def test_protected_route_requires_auth(client):
     resp = client.get("/api/expenses")
     assert resp.status_code == 401
