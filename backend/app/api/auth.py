@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
+from app.config import settings
 from app.database import get_db
 from app.models.user import User
 from app.schemas.auth import RegisterRequest, LoginRequest, UserRead
@@ -11,18 +12,16 @@ import jwt
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-_COOKIE_OPTS = dict(httponly=True, samesite="lax", secure=False)  # secure=True in prod
+_COOKIE_OPTS = dict(httponly=True, samesite="lax", secure=settings.cookie_secure)
 
 
-@router.post("/register", response_model=UserRead, status_code=201)
+@router.post("/register", status_code=200)
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == body.email).first():
-        raise HTTPException(status_code=409, detail="Email already registered")
-    user = User(email=body.email, password_hash=hash_password(body.password))
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
+    if not db.query(User).filter(User.email == body.email).first():
+        user = User(email=body.email, password_hash=hash_password(body.password))
+        db.add(user)
+        db.commit()
+    return {"detail": "If this email is not registered, your account has been created."}
 
 
 @router.post("/login", response_model=UserRead)

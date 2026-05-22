@@ -2705,3 +2705,71 @@ All spec requirements are covered. ✓
 **Type consistency check:** `_run_process_receipt` is defined and called consistently. `generate_pdf_with_images` matches its call site in the router. `StorageBackend` Protocol method signatures match `LocalStorageBackend` implementation. `ReceiptStatus` and `PaymentMethod` enums are defined once in models and imported everywhere. ✓
 
 **Placeholder check:** None found. ✓
+
+---
+
+## Security Review — 2026-05-21
+
+> Applied by security review pass after Tasks 1–4 were committed. Changes are additive — no original plan tasks were modified.
+
+Four HIGH/MEDIUM findings were identified and fixed. All fixes are deployed in the live files; this section documents what changed and why.
+
+---
+
+### Fix 1: Weak default `SECRET_KEY` accepted without validation
+
+**Files changed:** `backend/app/config.py`
+
+**Problem:** `secret_key: str` had no validator. Pydantic accepted the literal placeholder `change-this-to-a-random-64-char-string` from `.env.example` — anyone who copied the file verbatim shipped production with a publicly known JWT signing key, allowing token forgery for any user.
+
+**Fix:** Added `@field_validator("secret_key")` that rejects keys shorter than 32 chars or matching any known placeholder string. Also added `cookie_secure: bool = True` setting (see Fix 2).
+
+**How to set up locally:**
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+# paste result as SECRET_KEY in .env
+```
+
+---
+
+### Fix 2: Auth cookies sent over plaintext HTTP (`secure=False` + exposed port 8000)
+
+**Files changed:** `backend/app/api/auth.py`, `docker-compose.yml`
+
+**Problem:** `_COOKIE_OPTS` hardcoded `secure=False`, meaning JWTs would transmit without the `Secure` flag. The `api` service also had `ports: - "8000:8000"`, directly exposing the API on the host and fully bypassing the nginx HTTPS redirect.
+
+**Fix:**
+- `_COOKIE_OPTS` now uses `secure=settings.cookie_secure` (defaults `True`; set `COOKIE_SECURE=false` in `.env` for local dev without HTTPS).
+- Port binding replaced with `expose: - "8000"` so the API is only reachable from the nginx container, not from the host network.
+
+---
+
+### Fix 3: Hardcoded PostgreSQL credentials committed to repo
+
+**Files changed:** `docker-compose.yml`, `.env.example`
+
+**Problem:** `POSTGRES_USER: recibo42` and `POSTGRES_PASSWORD: recibo42` were plaintext literals in the committed compose file. Username equalled password. Any future `ports: - "5432:5432"` debug addition would have resulted in immediate full DB compromise.
+
+**Fix:** Compose now uses `${POSTGRES_USER}` / `${POSTGRES_PASSWORD}` / `${POSTGRES_DB}` — loaded from `.env` by compose at runtime. `.env.example` shows `CHANGE_THIS_DB_PASSWORD` as the placeholder.
+
+**VPS setup — rotate credentials:**
+```bash
+# Generate new DB password
+python -c "import secrets; print(secrets.token_hex(16))"
+# Update .env on VPS, then:
+docker compose down
+docker compose up -d postgres
+docker compose exec postgres psql -U recibo42 -c "ALTER USER recibo42 PASSWORD 'new-password';"
+```
+
+---
+
+### Fix 4: Account enumeration oracle via `/api/auth/register` (HTTP 409)
+
+**Files changed:** `backend/app/api/auth.py`, `backend/tests/test_auth.py`
+
+**Problem:** The register endpoint returned 409 `"Email already registered"` for existing emails and 201 for new ones. An attacker could iterate any email list and learn which addresses had accounts.
+
+**Fix:** The endpoint now always returns 200 with a generic message regardless of whether the email was new or already registered. The account is still created internally if the email is new; the API surface just stops leaking the outcome.
+
+`test_register_success` was updated to verify account creation by successfully logging in after registration. `test_register_duplicate_email` now asserts 200 for both calls instead of 409.

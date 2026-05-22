@@ -6,15 +6,22 @@ def test_register_success(client):
         "email": "new@recibo42.com",
         "password": "password123",
     })
-    assert resp.status_code == 201
-    assert resp.json()["email"] == "new@recibo42.com"
+    assert resp.status_code == 200
+    assert "detail" in resp.json()
+    # Confirm the account was actually created by logging in
+    login = client.post("/api/auth/login", json={
+        "email": "new@recibo42.com", "password": "password123"
+    })
+    assert login.status_code == 200
 
 
 def test_register_duplicate_email(client):
+    # Both new and duplicate registrations return 200 — no enumeration oracle
     payload = {"email": "dup@recibo42.com", "password": "password123"}
-    client.post("/api/auth/register", json=payload)
-    resp = client.post("/api/auth/register", json=payload)
-    assert resp.status_code == 409
+    resp1 = client.post("/api/auth/register", json=payload)
+    resp2 = client.post("/api/auth/register", json=payload)
+    assert resp1.status_code == 200
+    assert resp2.status_code == 200
 
 
 def test_login_success(client):
