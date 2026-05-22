@@ -28,7 +28,7 @@ def upgrade():
 
     receipt_status = sa.Enum("pending", "processing", "processed", "failed",
                               name="receiptstatus")
-    receipt_status.create(op.get_bind())
+    receipt_status.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "receipts",
@@ -44,7 +44,7 @@ def upgrade():
 
     payment_method = sa.Enum("cash", "credit", "debit", "pix", "boleto", "other",
                               name="paymentmethod")
-    payment_method.create(op.get_bind())
+    payment_method.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "expenses",
