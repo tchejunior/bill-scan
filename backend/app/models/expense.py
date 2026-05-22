@@ -24,11 +24,11 @@ class Expense(Base):
     vendor = Column(String, nullable=True)
     date = Column(Date, nullable=False)
     total_amount = Column(Numeric(10, 2), nullable=False)
-    currency = Column(String(3), default="BRL")
+    currency = Column(String(3), server_default="BRL")
     category = Column(String, nullable=True)
     payment_method = Column(Enum(PaymentMethod), nullable=True)
     notes = Column(Text, nullable=True)
-    is_manual = Column(Boolean, default=False)
+    is_manual = Column(Boolean, server_default="false")
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))

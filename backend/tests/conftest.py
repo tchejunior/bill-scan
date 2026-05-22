@@ -23,14 +23,18 @@ def engine():
 
 @pytest.fixture
 def db(engine):
-    connection = engine.connect()
-    transaction = connection.begin()
-    Session = sessionmaker(bind=connection)
-    session = Session()
-    yield session
-    session.close()
-    transaction.rollback()
-    connection.close()
+    with engine.connect() as connection:
+        with connection.begin():
+            Session = sessionmaker(
+                autocommit=False,
+                autoflush=False,
+                bind=connection,
+                join_transaction_mode="create_savepoint",
+            )
+            session = Session()
+            yield session
+            session.close()
+            # connection.begin() context manager rolls back on exit
 
 
 @pytest.fixture

@@ -40,6 +40,7 @@ def upgrade():
         sa.Column("processed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("raw_ai_output", postgresql.JSONB(), nullable=True),
     )
+    op.create_index("ix_receipts_user_id", "receipts", ["user_id"])
 
     payment_method = sa.Enum("cash", "credit", "debit", "pix", "boleto", "other",
                               name="paymentmethod")
@@ -61,9 +62,14 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(timezone=True)),
         sa.Column("updated_at", sa.DateTime(timezone=True)),
     )
+    op.create_index("ix_expenses_user_id", "expenses", ["user_id"])
+    op.create_index("ix_expenses_date", "expenses", ["date"])
 
 
 def downgrade():
+    op.drop_index("ix_expenses_date", "expenses")
+    op.drop_index("ix_expenses_user_id", "expenses")
+    op.drop_index("ix_receipts_user_id", "receipts")
     op.drop_table("expenses")
     op.drop_table("receipts")
     op.drop_table("users")
