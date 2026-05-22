@@ -1,0 +1,35 @@
+from app.services.auth import (
+    hash_password, verify_password,
+    create_access_token, create_refresh_token, decode_token,
+)
+import uuid
+import pytest
+
+
+def test_hash_and_verify_password():
+    hashed = hash_password("mysecret")
+    assert hashed != "mysecret"
+    assert verify_password("mysecret", hashed)
+    assert not verify_password("wrongpassword", hashed)
+
+
+def test_create_and_decode_access_token():
+    user_id = uuid.uuid4()
+    token = create_access_token(user_id)
+    payload = decode_token(token)
+    assert payload["sub"] == str(user_id)
+    assert payload["type"] == "access"
+
+
+def test_create_and_decode_refresh_token():
+    user_id = uuid.uuid4()
+    token = create_refresh_token(user_id)
+    payload = decode_token(token)
+    assert payload["sub"] == str(user_id)
+    assert payload["type"] == "refresh"
+
+
+def test_decode_invalid_token_raises():
+    import jwt
+    with pytest.raises(jwt.InvalidTokenError):
+        decode_token("not.a.valid.token")
