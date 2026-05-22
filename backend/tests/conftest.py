@@ -2,9 +2,9 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import app.models  # noqa: F401 — registers all models with Base
 from app.main import app
 from app.database import get_db, Base
-import app.models  # noqa: F401 — registers all models with Base
 import os
 
 TEST_DB_URL = os.environ.get(
