@@ -12,7 +12,10 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   })
 
   if (res.status === 401) {
-    window.location.href = '/login'
+    const pub = ['/login', '/register']
+    if (!pub.includes(window.location.pathname)) {
+      window.location.href = '/login'
+    }
     throw new Error('Unauthorized')
   }
 
