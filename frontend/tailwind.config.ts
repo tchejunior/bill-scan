@@ -6,14 +6,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Recibo42 design tokens
-        bg: 'var(--bg)',
-        'bg-card': 'var(--bg-card)',
-        accent: 'var(--accent)',
-        'accent-hover': 'var(--accent-hover)',
-        foreground: 'var(--text)',
-        muted: 'var(--text-muted)',
-        border: 'var(--border)',
+        // Recibo42 brand tokens (prefixed to avoid shadcn collisions)
+        brand: 'var(--accent)',
+        'brand-hover': 'var(--accent-hover)',
+        'app-bg': 'var(--bg)',
+        'app-card': 'var(--bg-card)',
+        'app-text': 'var(--text)',
+        'app-muted': 'var(--text-muted)',
         // shadcn component tokens
         background: 'hsl(var(--background))',
         card: {
@@ -38,8 +37,15 @@ export default {
           DEFAULT: 'hsl(var(--popover))',
           foreground: 'hsl(var(--popover-foreground))',
         },
-        'muted-foreground': 'hsl(var(--muted-foreground))',
-        'accent-foreground': 'hsl(var(--accent-foreground))',
+        muted: {
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent-ui))',
+          foreground: 'hsl(var(--accent-foreground))',
+        },
+        border: 'hsl(var(--border))',
       },
       borderRadius: {
         lg: 'var(--radius)',
