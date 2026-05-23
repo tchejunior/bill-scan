@@ -15,16 +15,18 @@ export function CropPage() {
   const cropperRef = useRef<Cropper | null>(null)
   const [uploading, setUploading] = useState(false)
   const [imgSrc, setImgSrc] = useState<string | null>(null)
+  const [imageLoaded, setImageLoaded] = useState(false)
 
   useEffect(() => {
     if (!blob) { navigate('/scan'); return }
+    setImageLoaded(false)
     const url = URL.createObjectURL(blob)
     setImgSrc(url)
     return () => URL.revokeObjectURL(url)
   }, [blob, navigate])
 
   useEffect(() => {
-    if (!imgSrc || !imgRef.current) return
+    if (!imgSrc || !imgRef.current || !imageLoaded) return
     const cropper = new Cropper(imgRef.current, {
       viewMode: 1,
       autoCropArea: 0.9,
@@ -37,7 +39,7 @@ export function CropPage() {
       cropper.destroy()
       cropperRef.current = null
     }
-  }, [imgSrc])
+  }, [imgSrc, imageLoaded])
 
   function handleRetake() {
     setBlob(null)
@@ -79,6 +81,7 @@ export function CropPage() {
           ref={imgRef}
           src={imgSrc}
           alt="Recibo"
+          onLoad={() => setImageLoaded(true)}
           style={{ maxWidth: '100%', display: 'block' }}
         />
       </div>

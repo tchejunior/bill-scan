@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
-from app.schemas.auth import RegisterRequest, LoginRequest, UserRead
+from app.schemas.auth import RegisterRequest, LoginRequest, UserRead, ChangePasswordRequest
 from app.services.auth import (
     hash_password, verify_password,
     create_access_token, create_refresh_token, decode_token,
@@ -69,3 +69,18 @@ def logout(response: Response):
 @router.get("/me", response_model=UserRead)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.post("/change-password")
+def change_password(
+    body: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not verify_password(body.current_password, current_user.password_hash):
+        raise HTTPException(status_code=401, detail="Senha atual incorreta")
+    if len(body.new_password) < 8:
+        raise HTTPException(status_code=422, detail="A nova senha deve ter pelo menos 8 caracteres")
+    current_user.password_hash = hash_password(body.new_password)
+    db.commit()
+    return {"detail": "Senha alterada com sucesso"}

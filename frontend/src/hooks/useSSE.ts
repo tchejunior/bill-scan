@@ -19,8 +19,7 @@ export function useSSE() {
     })
 
     es.onerror = () => {
-      es.close()
-      esRef.current = null
+      // EventSource will auto-reconnect — do not call es.close() here
     }
 
     return () => {

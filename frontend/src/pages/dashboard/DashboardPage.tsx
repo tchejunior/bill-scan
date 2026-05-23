@@ -5,12 +5,10 @@ import { ExpenseCard } from '@/components/ExpenseCard'
 import { SkeletonCard } from '@/components/SkeletonCard'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useAuth } from '@/hooks/useAuth'
-import { useSSE } from '@/hooks/useSSE'
 import { formatBRL } from '@/lib/utils'
 
 export function DashboardPage() {
   const { user } = useAuth()
-  useSSE()
 
   const { data: expenses, isLoading: expLoading } = useQuery({
     queryKey: ['expenses'],

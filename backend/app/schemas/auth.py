@@ -12,6 +12,11 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class UserRead(BaseModel):
     id: UUID
     email: str

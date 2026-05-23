@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/queryClient'
 import { useAuth } from '@/hooks/useAuth'
+import { useSSE } from '@/hooks/useSSE'
 import { BottomNav } from '@/components/BottomNav'
 import { FAB } from '@/components/FAB'
 import { LoginPage } from '@/pages/auth/LoginPage'
@@ -38,6 +39,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 function Shell() {
   const location = useLocation()
   const showNav = !NO_NAV_ROUTES.includes(location.pathname)
+  useSSE()
 
   return (
     <div style={{ paddingBottom: showNav ? '4rem' : 0 }}>

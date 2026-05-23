@@ -58,9 +58,11 @@ export function ExpensePage() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    const parsedAmount = parseFloat(amount)
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) return
     mutation.mutate({
       merchant,
-      amount: Math.round(parseFloat(amount) * 100),
+      amount: Math.round(parsedAmount * 100),
       date,
       category,
       payment_method: paymentMethod,
