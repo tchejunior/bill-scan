@@ -31,7 +31,7 @@ def login(body: LoginRequest, response: Response, db: Session = Depends(get_db))
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     response.set_cookie("access_token", create_access_token(user.id),
-                        max_age=900, **_COOKIE_OPTS)
+                        max_age=900, path="/", **_COOKIE_OPTS)
     response.set_cookie("refresh_token", create_refresh_token(user.id),
                         max_age=86400 * 30, path="/api/auth/refresh", **_COOKIE_OPTS)
     return user
@@ -55,13 +55,13 @@ def refresh(
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found")
     response.set_cookie("access_token", create_access_token(user.id),
-                        max_age=900, **_COOKIE_OPTS)
+                        max_age=900, path="/", **_COOKIE_OPTS)
     return user
 
 
 @router.post("/logout")
 def logout(response: Response):
-    response.delete_cookie("access_token", **_COOKIE_OPTS)
+    response.delete_cookie("access_token", path="/", **_COOKIE_OPTS)
     response.delete_cookie("refresh_token", path="/api/auth/refresh", **_COOKIE_OPTS)
     return {"detail": "Logged out"}
 
