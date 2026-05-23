@@ -1,3 +1,5 @@
+import { queryClient } from '@/lib/queryClient'
+
 const BASE_URL = '/api'
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -12,10 +14,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   })
 
   if (res.status === 401) {
-    const pub = ['/login', '/register']
-    if (!pub.includes(window.location.pathname)) {
-      window.location.href = '/login'
-    }
+    queryClient.setQueryData(['auth/me'], null)
     throw new Error('Unauthorized')
   }
 
