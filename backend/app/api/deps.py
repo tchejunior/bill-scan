@@ -28,6 +28,6 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Invalid token type")
 
     user = db.query(User).filter(User.id == payload["sub"]).first()
-    if not user or not user.is_active:
+    if not user or user.is_active is False:
         raise HTTPException(status_code=401, detail="User not found")
     return user
