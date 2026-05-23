@@ -8,6 +8,7 @@ from app.services.auth import (
     hash_password, verify_password,
     create_access_token, create_refresh_token, decode_token,
 )
+from app.api.deps import get_current_user
 import jwt
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -63,3 +64,8 @@ def logout(response: Response):
     response.delete_cookie("access_token", **_COOKIE_OPTS)
     response.delete_cookie("refresh_token", path="/api/auth/refresh", **_COOKIE_OPTS)
     return {"detail": "Logged out"}
+
+
+@router.get("/me", response_model=UserRead)
+def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
