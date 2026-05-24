@@ -22,7 +22,11 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new Error(body.detail ?? `HTTP ${res.status}`)
+    const detail = body.detail
+    const message = Array.isArray(detail)
+      ? detail.map((e: { msg?: string }) => e.msg).filter(Boolean).join('; ')
+      : String(detail ?? `HTTP ${res.status}`)
+    throw new Error(message)
   }
 
   return res.json()

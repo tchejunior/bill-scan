@@ -43,6 +43,10 @@ def _run_process_receipt(receipt_id: str, db: Session) -> None:
         except (ValueError, TypeError):
             pass
 
+    line_items = data.get("line_items")
+    if not isinstance(line_items, list):
+        line_items = []
+
     expense = Expense(
         user_id=receipt.user_id,
         receipt_id=receipt.id,
@@ -52,6 +56,7 @@ def _run_process_receipt(receipt_id: str, db: Session) -> None:
         currency=data.get("currency", "BRL"),
         category=data.get("suggested_category"),
         payment_method=_PM_MAP.get(data.get("payment_method") or "", PaymentMethod.other),
+        line_items=line_items or None,
     )
     db.add(expense)
 

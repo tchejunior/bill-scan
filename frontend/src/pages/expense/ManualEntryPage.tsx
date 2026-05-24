@@ -75,8 +75,8 @@ export function ManualEntryPage() {
       merchant,
       amount: Math.round(parseFloat(amount) * 100),
       date,
-      category,
-      payment_method: paymentMethod,
+      category: category || undefined,
+      payment_method: paymentMethod || undefined,
       notes,
       receipt_id,
     })

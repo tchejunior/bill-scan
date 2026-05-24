@@ -42,6 +42,7 @@ class ExpenseRead(BaseModel):
     category: Optional[str]
     payment_method: Optional[PaymentMethod]
     notes: Optional[str]
+    line_items: Optional[list] = None
     is_manual: bool
     created_at: datetime
     updated_at: datetime
@@ -63,6 +64,7 @@ class ExpenseRead(BaseModel):
             'category': v.category,
             'payment_method': v.payment_method,
             'notes': v.notes,
+            'line_items': v.line_items,
             'is_manual': v.is_manual,
             'created_at': v.created_at,
             'updated_at': v.updated_at,

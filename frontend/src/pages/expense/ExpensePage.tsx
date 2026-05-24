@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react'
+import type { LineItem } from '@/api/expenses'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { expensesApi, type Expense } from '@/api/expenses'
@@ -70,8 +71,8 @@ export function ExpensePage() {
       merchant,
       amount: Math.round(parsedAmount * 100),
       date,
-      category,
-      payment_method: paymentMethod,
+      category: category || undefined,
+      payment_method: paymentMethod || undefined,
       notes,
     })
   }
@@ -182,6 +183,34 @@ export function ExpensePage() {
                 rows={3}
               />
             </div>
+
+            {expense?.line_items && expense.line_items.length > 0 && (
+              <div className="space-y-1">
+                <Label>Itens do recibo</Label>
+                <div
+                  className="rounded-xl overflow-hidden text-sm"
+                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                >
+                  {expense.line_items.map((item: LineItem, i: number) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between px-3 py-2 gap-2"
+                      style={{ borderBottom: i < expense.line_items!.length - 1 ? '1px solid var(--border)' : 'none' }}
+                    >
+                      <span style={{ color: 'var(--text)', flex: 1 }}>
+                        {item.quantity > 1 && (
+                          <span className="mr-1" style={{ color: 'var(--text-muted)' }}>{item.quantity}×</span>
+                        )}
+                        {item.description}
+                      </span>
+                      <span className="font-medium tabular-nums" style={{ color: 'var(--text)' }}>
+                        R$ {item.total.toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <Button
               type="submit"

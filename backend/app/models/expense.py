@@ -2,7 +2,7 @@ import uuid
 import enum
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, Boolean, Numeric, Date, DateTime, Text, Enum, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.database import Base
 
 
@@ -28,6 +28,7 @@ class Expense(Base):
     category = Column(String, nullable=True)
     payment_method = Column(Enum(PaymentMethod), nullable=True)
     notes = Column(Text, nullable=True)
+    line_items = Column(JSONB, nullable=True)
     is_manual = Column(Boolean, server_default="false")
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),

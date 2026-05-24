@@ -7,12 +7,13 @@ _MODEL = "claude-sonnet-4-6"
 _PROMPT = (
     "Extract receipt data and return ONLY valid JSON with these exact fields:\n"
     '{"vendor": "string or null", "date": "YYYY-MM-DD or null", '
-    '"total_amount": number_or_null, "subtotal": number_or_null, '
+    '"total_amount": number_in_BRL_or_null, "subtotal": number_or_null, '
     '"tax_amount": number_or_null, '
     '"payment_method": "cash|credit|debit|pix|boleto|other or null", '
-    '"suggested_category": "Alimentação|Transporte|Saúde|Moradia|Lazer|'
-    'Compras|Educação|Serviços/Utilidades|Viagem|Outros or null", '
-    '"currency": "BRL", "line_items": []}\n'
+    '"suggested_category": "Alimentação|Transporte|Saúde|Lazer|Moradia|Educação|Outro or null", '
+    '"currency": "BRL", '
+    '"line_items": [{"description": "string", "quantity": number, "unit_price": number, "total": number}]}\n'
+    "line_items must list every product/service line on the receipt. Use an empty array [] if none found.\n"
     "Return ONLY the JSON object. No explanation, no markdown."
 )
 
