@@ -1,5 +1,5 @@
+import datetime as _dt
 from decimal import Decimal
-from datetime import date, datetime
 from typing import Any, Optional
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -8,7 +8,7 @@ from app.models.expense import PaymentMethod
 
 class ExpenseCreate(BaseModel):
     merchant: Optional[str] = None
-    date: date
+    date: _dt.date
     amount: int  # cents
     currency: str = "BRL"
     category: Optional[str] = None
@@ -19,7 +19,7 @@ class ExpenseCreate(BaseModel):
 
 class ExpenseUpdate(BaseModel):
     merchant: Optional[str] = None
-    date: Optional[date] = None
+    date: Optional[_dt.date] = None
     amount: Optional[int] = None  # cents
     currency: Optional[str] = None
     category: Optional[str] = None
@@ -35,22 +35,21 @@ class ExpenseRead(BaseModel):
     receipt_id: Optional[UUID]
     merchant: Optional[str]
     amount: int  # cents
-    date: date
+    date: _dt.date
     currency: str
     category: Optional[str]
     payment_method: Optional[PaymentMethod]
     notes: Optional[str]
     line_items: Optional[list] = None
     is_manual: bool
-    created_at: datetime
-    updated_at: datetime
+    created_at: _dt.datetime
+    updated_at: _dt.datetime
 
     @model_validator(mode='before')
     @classmethod
     def _adapt(cls, v: Any) -> Any:
         if isinstance(v, dict):
             return v
-        # SQLAlchemy ORM object — map vendor→merchant and total_amount→amount (cents)
         return {
             'id': v.id,
             'user_id': v.user_id,
