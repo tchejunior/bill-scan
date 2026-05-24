@@ -43,11 +43,12 @@ export function ExpensePage() {
   const [category, setCategory] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('')
   const [notes, setNotes] = useState('')
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (!expense) return
     setMerchant(expense.merchant ?? '')
-    setAmount(expense.amount ? (expense.amount / 100).toFixed(2) : '')
+    setAmount((expense.amount / 100).toFixed(2))
     setDate(expense.date?.slice(0, 10) ?? '')
     setCategory(expense.category ?? '')
     setPaymentMethod(expense.payment_method ?? '')
@@ -61,6 +62,7 @@ export function ExpensePage() {
       queryClient.invalidateQueries({ queryKey: ['expense', id] })
       navigate('/')
     },
+    onError: (err) => setError(err instanceof Error ? err.message : 'Erro ao salvar'),
   })
 
   function handleSubmit(e: FormEvent) {
@@ -211,6 +213,8 @@ export function ExpensePage() {
                 </div>
               </div>
             )}
+
+            {error && <p className="text-sm text-red-400">{error}</p>}
 
             <Button
               type="submit"
