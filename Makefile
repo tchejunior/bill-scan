@@ -1,8 +1,10 @@
-REPO := /home/jarvis/recibo42
+REPO     := /home/jarvis/recibo42
+FRONTEND := $(REPO)/frontend
+WEBROOT  := /var/www/recibo42
 
-.PHONY: deploy pull build migrate restart
+.PHONY: deploy pull build build-frontend migrate fix-perms restart
 
-deploy: pull build migrate fix-perms restart
+deploy: pull build build-frontend migrate fix-perms restart
 	@echo "Deployment complete."
 
 pull:
@@ -10,6 +12,12 @@ pull:
 
 build:
 	cd $(REPO) && docker compose build api worker
+
+build-frontend:
+	cd $(FRONTEND) && npm ci --prefer-offline
+	cd $(FRONTEND) && npm run build
+	cp -r $(FRONTEND)/dist/. $(WEBROOT)/
+	sudo systemctl reload nginx
 
 migrate:
 	cd $(REPO) && docker compose run --rm --no-deps api alembic upgrade head
