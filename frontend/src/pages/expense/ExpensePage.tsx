@@ -154,7 +154,7 @@ export function ExpensePage() {
 
             <div className="space-y-1">
               <Label>Categoria</Label>
-              <Select value={category} onValueChange={setCategory} disabled={processing}>
+              <Select key={`cat-${expense?.id}`} value={category} onValueChange={setCategory} disabled={processing}>
                 <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
                 <SelectContent>
                   {CATEGORIES.map((c) => (
@@ -166,7 +166,7 @@ export function ExpensePage() {
 
             <div className="space-y-1">
               <Label>Pagamento</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod} disabled={processing}>
+              <Select key={`pay-${expense?.id}`} value={paymentMethod} onValueChange={setPaymentMethod} disabled={processing}>
                 <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
                 <SelectContent>
                   {PAYMENT_METHODS.map((m) => (
