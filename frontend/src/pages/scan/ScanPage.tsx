@@ -42,7 +42,7 @@ export function ScanPage() {
             <div className="text-4xl mb-4">📷</div>
             <p className="text-sm opacity-80">{error}</p>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/dashboard')}
               className="mt-6 px-6 py-2 rounded-full text-sm"
               style={{ background: 'var(--accent)', color: '#fff' }}
             >
@@ -60,7 +60,7 @@ export function ScanPage() {
               muted
             />
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/dashboard')}
               className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full flex items-center justify-center text-white text-lg font-bold"
               style={{ background: 'rgba(0,0,0,0.5)' }}
               aria-label="Fechar"

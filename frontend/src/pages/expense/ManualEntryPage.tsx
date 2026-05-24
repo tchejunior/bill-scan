@@ -45,7 +45,7 @@ export function ManualEntryPage() {
     mutationFn: expensesApi.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
-      navigate('/')
+      navigate('/dashboard')
     },
     onError: (err) => setError(err instanceof Error ? err.message : 'Erro ao salvar'),
   })

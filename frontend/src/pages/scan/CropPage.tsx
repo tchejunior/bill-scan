@@ -74,7 +74,7 @@ export function CropPage() {
                 queryClient.invalidateQueries({ queryKey: ['receipts'] })
                 queryClient.invalidateQueries({ queryKey: ['expenses'] })
                 setBlob(null)
-                navigate('/')
+                navigate('/dashboard')
               }
               resolve()
             } catch (err) {

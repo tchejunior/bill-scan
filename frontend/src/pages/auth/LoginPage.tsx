@@ -15,7 +15,7 @@ export function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const from = (location.state as { from?: string })?.from ?? '/'
+  const from = (location.state as { from?: string })?.from ?? '/dashboard'
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()

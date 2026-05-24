@@ -185,7 +185,7 @@ export function ExpensePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
       queryClient.invalidateQueries({ queryKey: ['expense', id] })
-      navigate('/')
+      navigate('/dashboard')
     },
     onError: (err) => setError(err instanceof Error ? err.message : 'Erro ao salvar'),
   })
@@ -372,7 +372,7 @@ export function ExpensePage() {
                 if (!confirm('Excluir esta despesa?')) return
                 expensesApi.delete(id!).then(() => {
                   queryClient.invalidateQueries({ queryKey: ['expenses'] })
-                  navigate('/')
+                  navigate('/dashboard')
                 })
               }}
               className="w-full py-2.5 rounded-xl text-sm font-semibold"

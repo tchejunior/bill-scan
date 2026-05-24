@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 
 const tabs = [
-  { to: '/', icon: '🏠', label: 'Início' },
+  { to: '/dashboard', icon: '🏠', label: 'Início' },
   { to: '/reports', icon: '📊', label: 'Relatório' },
   { to: '/settings', icon: '⚙️', label: 'Config' },
 ]
@@ -16,7 +16,7 @@ export function BottomNav() {
         <NavLink
           key={tab.to}
           to={tab.to}
-          end={tab.to === '/'}
+          end={tab.to === '/dashboard'}
           className="flex flex-col items-center justify-center flex-1 py-2 text-xs"
           style={({ isActive }) => ({ color: isActive ? 'var(--accent)' : 'var(--text-muted)' })}
         >
