@@ -53,7 +53,7 @@ export function CropPage() {
       await new Promise<void>((resolve, reject) => {
         cropperRef.current!.getCroppedCanvas({ maxWidth: 1920, maxHeight: 1920 })
           .toBlob(async (croppedBlob) => {
-            if (!croppedBlob) { reject(new Error('Failed to crop')); return }
+            if (!croppedBlob || croppedBlob.size === 0) { reject(new Error('Failed to crop image')); return }
             try {
               await receiptsApi.upload(croppedBlob, 'receipt.jpg')
               queryClient.invalidateQueries({ queryKey: ['receipts'] })

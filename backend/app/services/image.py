@@ -1,5 +1,8 @@
 import io
+import pillow_heif
 from PIL import Image
+
+pillow_heif.register_heif_opener()
 
 _MAX_SIZE = 1920
 _WEBP_QUALITY = 85

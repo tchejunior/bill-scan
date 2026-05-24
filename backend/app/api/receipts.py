@@ -12,7 +12,7 @@ import uuid
 
 router = APIRouter(prefix="/api/receipts", tags=["receipts"])
 
-_ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic"}
+_ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
 
 
 @router.post("", response_model=ReceiptRead, status_code=202)
@@ -26,7 +26,12 @@ async def upload_receipt(
 
     receipt_id = uuid.uuid4()
     raw = await file.read()
-    webp_data = process_image(raw)
+    if not raw:
+        raise HTTPException(status_code=422, detail="Empty file received")
+    try:
+        webp_data = process_image(raw)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Could not process image: {exc}") from exc
     image_path = storage.save(str(current_user.id), str(receipt_id), webp_data)
 
     receipt = Receipt(id=receipt_id, user_id=current_user.id, image_path=image_path)
