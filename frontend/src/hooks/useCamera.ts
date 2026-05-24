@@ -41,12 +41,11 @@ export function useCamera(videoRef: React.RefObject<HTMLVideoElement | null>) {
     const track = streamRef.current?.getVideoTracks()[0]
     if (!track) return
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ic = new (window as any).ImageCapture(track)
-      await ic.setPhotoSettings({ fillLightMode: flashOn ? 'off' : 'flash' })
-      setFlashOn((v) => !v)
+      const next = !flashOn
+      await track.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] })
+      setFlashOn(next)
     } catch {
-      // Flash not supported — silent fail
+      // Torch not supported on this device — silent fail
     }
   }, [flashOn])
 

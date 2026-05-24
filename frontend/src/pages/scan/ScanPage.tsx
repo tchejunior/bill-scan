@@ -59,6 +59,14 @@ export function ScanPage() {
               playsInline
               muted
             />
+            <button
+              onClick={() => navigate('/')}
+              className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full flex items-center justify-center text-white text-lg font-bold"
+              style={{ background: 'rgba(0,0,0,0.5)' }}
+              aria-label="Fechar"
+            >
+              ✕
+            </button>
             {/* Guide overlay */}
             <div className="absolute inset-0 flex items-center justify-center">
               <div

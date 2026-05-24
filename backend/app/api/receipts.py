@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.database import get_db
@@ -65,3 +66,23 @@ def get_receipt(
     if not receipt:
         raise HTTPException(status_code=404, detail="Receipt not found")
     return receipt
+
+
+@router.get("/{receipt_id}/image")
+def get_receipt_image(
+    receipt_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    receipt = db.query(Receipt).filter(
+        Receipt.id == receipt_id, Receipt.user_id == current_user.id
+    ).first()
+    if not receipt:
+        raise HTTPException(status_code=404, detail="Receipt not found")
+    try:
+        data = storage.load(receipt.image_path)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Image not found")
+    return Response(content=data, media_type="image/webp", headers={
+        "Cache-Control": "private, max-age=3600",
+    })

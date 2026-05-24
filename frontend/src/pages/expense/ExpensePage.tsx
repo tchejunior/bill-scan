@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, type FormEvent } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback, type FormEvent } from 'react'
 import type { LineItem } from '@/api/expenses'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -9,6 +9,88 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+function ReceiptImage({ receiptId }: { receiptId: string }) {
+  const [open, setOpen] = useState(false)
+  const [scale, setScale] = useState(1)
+  const lastDist = useRef<number | null>(null)
+  const imgSrc = `/api/receipts/${receiptId}/image`
+
+  const getDistance = (touches: TouchList) => {
+    const dx = touches[0].clientX - touches[1].clientX
+    const dy = touches[0].clientY - touches[1].clientY
+    return Math.sqrt(dx * dx + dy * dy)
+  }
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) lastDist.current = getDistance(e.touches)
+  }, [])
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2 && lastDist.current !== null) {
+      e.preventDefault()
+      const dist = getDistance(e.touches)
+      const delta = dist / lastDist.current
+      setScale(s => Math.min(Math.max(s * delta, 1), 5))
+      lastDist.current = dist
+    }
+  }, [])
+
+  const onTouchEnd = useCallback(() => { lastDist.current = null }, [])
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => { setOpen(true); setScale(1) }}
+        className="w-full rounded-xl overflow-hidden"
+        style={{ border: '1px solid var(--border)', maxHeight: 180 }}
+      >
+        <img src={imgSrc} alt="Recibo" className="w-full object-cover" style={{ maxHeight: 180 }} />
+      </button>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col"
+          style={{ background: 'rgba(0,0,0,0.95)' }}
+        >
+          <div className="flex justify-between items-center px-4 py-3">
+            <span className="text-white text-sm">Recibo</span>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-white"
+              style={{ background: 'rgba(255,255,255,0.15)' }}
+            >
+              ✕
+            </button>
+          </div>
+          <div
+            className="flex-1 overflow-auto"
+            style={{ touchAction: scale > 1 ? 'pan-x pan-y' : 'pan-x pan-y pinch-zoom' }}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+          >
+            <img
+              src={imgSrc}
+              alt="Recibo"
+              style={{
+                width: `${scale * 100}%`,
+                maxWidth: 'none',
+                display: 'block',
+                transformOrigin: 'top left',
+              }}
+            />
+          </div>
+          <p className="text-center text-xs pb-4" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            Pinça para zoom
+          </p>
+        </div>
+      )}
+    </>
+  )
+}
 
 const CATEGORIES = ['Alimentação', 'Transporte', 'Saúde', 'Lazer', 'Moradia', 'Educação', 'Outro']
 const PAYMENT_METHODS = [
@@ -112,6 +194,10 @@ export function ExpensePage() {
           Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {expense?.receipt_id && !processing && (
+              <ReceiptImage receiptId={expense.receipt_id} />
+            )}
+
             <div className="space-y-1">
               <Label>Estabelecimento</Label>
               {processing ? (
