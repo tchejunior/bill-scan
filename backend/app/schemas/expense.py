@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from decimal import Decimal
 from datetime import date, datetime
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 from app.models.expense import PaymentMethod
 
 
 class ExpenseCreate(BaseModel):
-    vendor: Optional[str] = None
+    merchant: Optional[str] = None
     date: date
-    total_amount: Decimal
+    amount: int  # cents
     currency: str = "BRL"
     category: Optional[str] = None
     payment_method: Optional[PaymentMethod] = None
@@ -20,9 +20,9 @@ class ExpenseCreate(BaseModel):
 
 
 class ExpenseUpdate(BaseModel):
-    vendor: Optional[str] = None
+    merchant: Optional[str] = None
     date: Optional[date] = None
-    total_amount: Optional[Decimal] = None
+    amount: Optional[int] = None  # cents
     currency: Optional[str] = None
     category: Optional[str] = None
     payment_method: Optional[PaymentMethod] = None
@@ -35,9 +35,9 @@ class ExpenseRead(BaseModel):
     id: UUID
     user_id: UUID
     receipt_id: Optional[UUID]
-    vendor: Optional[str]
+    merchant: Optional[str]
+    amount: int  # cents
     date: date
-    total_amount: Decimal
     currency: str
     category: Optional[str]
     payment_method: Optional[PaymentMethod]
@@ -45,3 +45,25 @@ class ExpenseRead(BaseModel):
     is_manual: bool
     created_at: datetime
     updated_at: datetime
+
+    @model_validator(mode='before')
+    @classmethod
+    def _adapt(cls, v: Any) -> Any:
+        if isinstance(v, dict):
+            return v
+        # SQLAlchemy ORM object — map vendor→merchant and total_amount→amount (cents)
+        return {
+            'id': v.id,
+            'user_id': v.user_id,
+            'receipt_id': v.receipt_id,
+            'merchant': v.vendor,
+            'amount': int(v.total_amount * 100) if v.total_amount else 0,
+            'date': v.date,
+            'currency': v.currency,
+            'category': v.category,
+            'payment_method': v.payment_method,
+            'notes': v.notes,
+            'is_manual': v.is_manual,
+            'created_at': v.created_at,
+            'updated_at': v.updated_at,
+        }

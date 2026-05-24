@@ -1,4 +1,5 @@
 import uuid as uuid_lib
+from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
@@ -28,7 +29,14 @@ def create_expense(
     expense = Expense(
         user_id=current_user.id,
         is_manual=True,
-        **body.model_dump(exclude_none=True),
+        vendor=body.merchant,
+        total_amount=Decimal(body.amount) / 100,
+        date=body.date,
+        currency=body.currency,
+        category=body.category,
+        payment_method=body.payment_method,
+        notes=body.notes,
+        receipt_id=body.receipt_id,
     )
     db.add(expense)
     db.commit()
@@ -63,7 +71,12 @@ def update_expense(
     db: Session = Depends(get_db),
 ):
     expense = _get_owned_expense(expense_id, current_user, db)
-    for field, value in body.model_dump(exclude_none=True).items():
+    data = body.model_dump(exclude_none=True)
+    if 'merchant' in data:
+        expense.vendor = data.pop('merchant')
+    if 'amount' in data:
+        expense.total_amount = Decimal(data.pop('amount')) / 100
+    for field, value in data.items():
         setattr(expense, field, value)
     db.commit()
     db.refresh(expense)
