@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useMemo, type FormEvent } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { expensesApi, type Expense } from '@/api/expenses'
@@ -29,6 +29,12 @@ export function ExpensePage() {
     queryFn: () => expensesApi.get(id!),
     enabled: !!id,
   })
+
+  const { data: allExpenses } = useQuery({ queryKey: ['expenses'], queryFn: expensesApi.list })
+  const merchants = useMemo(
+    () => [...new Set(allExpenses?.map((e) => e.merchant).filter(Boolean) as string[])].sort(),
+    [allExpenses],
+  )
 
   const [merchant, setMerchant] = useState('')
   const [amount, setAmount] = useState('')
@@ -106,7 +112,16 @@ export function ExpensePage() {
               {processing ? (
                 <div className="h-10 rounded animate-pulse" style={{ background: 'var(--border)' }} />
               ) : (
-                <Input value={merchant} onChange={(e) => setMerchant(e.target.value)} />
+                <>
+                  <Input
+                    list="merchant-suggestions"
+                    value={merchant}
+                    onChange={(e) => setMerchant(e.target.value)}
+                  />
+                  <datalist id="merchant-suggestions">
+                    {merchants.map((m) => <option key={m} value={m} />)}
+                  </datalist>
+                </>
               )}
             </div>
 

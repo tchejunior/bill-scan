@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useRef, useMemo, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { expensesApi } from '@/api/expenses'
+import { receiptsApi } from '@/api/receipts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,6 +22,9 @@ const PAYMENT_METHODS = [
 export function ManualEntryPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
+
   const [merchant, setMerchant] = useState('')
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
@@ -28,6 +32,14 @@ export function ManualEntryPage() {
   const [paymentMethod, setPaymentMethod] = useState('')
   const [notes, setNotes] = useState('')
   const [error, setError] = useState('')
+  const [receiptFile, setReceiptFile] = useState<File | null>(null)
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null)
+
+  const { data: expenses } = useQuery({ queryKey: ['expenses'], queryFn: expensesApi.list })
+  const merchants = useMemo(
+    () => [...new Set(expenses?.map((e) => e.merchant).filter(Boolean) as string[])].sort(),
+    [expenses],
+  )
 
   const mutation = useMutation({
     mutationFn: expensesApi.create,
@@ -38,10 +50,27 @@ export function ManualEntryPage() {
     onError: (err) => setError(err instanceof Error ? err.message : 'Erro ao salvar'),
   })
 
-  function handleSubmit(e: FormEvent) {
+  function handleFileSelected(file: File) {
+    setReceiptFile(file)
+    setReceiptPreview(URL.createObjectURL(file))
+  }
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
     if (!amount || parseFloat(amount) <= 0) { setError('Informe um valor válido'); return }
+
+    let receipt_id: string | undefined
+    if (receiptFile) {
+      try {
+        const receipt = await receiptsApi.upload(receiptFile)
+        receipt_id = receipt.id
+      } catch {
+        setError('Erro ao enviar foto do recibo')
+        return
+      }
+    }
+
     mutation.mutate({
       merchant,
       amount: Math.round(parseFloat(amount) * 100),
@@ -49,6 +78,7 @@ export function ManualEntryPage() {
       category,
       payment_method: paymentMethod,
       notes,
+      receipt_id,
     })
   }
 
@@ -60,10 +90,79 @@ export function ManualEntryPage() {
           <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Nova despesa</h1>
         </div>
 
+        {/* Receipt attachment */}
+        <div className="mb-6">
+          {receiptPreview ? (
+            <div className="relative">
+              <img
+                src={receiptPreview}
+                alt="Recibo"
+                className="w-full rounded-xl object-cover"
+                style={{ maxHeight: 180 }}
+              />
+              <button
+                type="button"
+                onClick={() => { setReceiptFile(null); setReceiptPreview(null) }}
+                className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold"
+                style={{ background: 'rgba(0,0,0,0.6)', color: '#fff' }}
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <div
+              className="rounded-xl flex gap-3 p-4 justify-center"
+              style={{ background: 'var(--bg-card)', border: '1px dashed var(--border)' }}
+            >
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex-1 flex flex-col items-center gap-1 py-3 rounded-lg text-sm font-medium"
+                style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--text-muted)' }}
+              >
+                <span className="text-2xl">📷</span>
+                Escanear
+              </button>
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                className="flex-1 flex flex-col items-center gap-1 py-3 rounded-lg text-sm font-medium"
+                style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--text-muted)' }}
+              >
+                <span className="text-2xl">🖼️</span>
+                Galeria
+              </button>
+            </div>
+          )}
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => e.target.files?.[0] && handleFileSelected(e.target.files[0])}
+          />
+          <input
+            ref={galleryInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => e.target.files?.[0] && handleFileSelected(e.target.files[0])}
+          />
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
             <Label>Estabelecimento</Label>
-            <Input value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="Ex: Supermercado Extra" />
+            <Input
+              list="merchant-suggestions"
+              value={merchant}
+              onChange={(e) => setMerchant(e.target.value)}
+              placeholder="Ex: Supermercado Extra"
+            />
+            <datalist id="merchant-suggestions">
+              {merchants.map((m) => <option key={m} value={m} />)}
+            </datalist>
           </div>
 
           <div className="space-y-1">
