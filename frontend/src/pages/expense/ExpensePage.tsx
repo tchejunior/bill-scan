@@ -44,6 +44,7 @@ export function ExpensePage() {
   const [paymentMethod, setPaymentMethod] = useState('')
   const [notes, setNotes] = useState('')
   const [error, setError] = useState('')
+  const [initialized, setInitialized] = useState(false)
 
   useEffect(() => {
     if (!expense) return
@@ -53,6 +54,7 @@ export function ExpensePage() {
     setCategory(expense.category ?? '')
     setPaymentMethod(expense.payment_method ?? '')
     setNotes(expense.notes ?? '')
+    setInitialized(true)
   }, [expense])
 
   const mutation = useMutation({
@@ -154,26 +156,34 @@ export function ExpensePage() {
 
             <div className="space-y-1">
               <Label>Categoria</Label>
-              <Select key={`cat-${expense?.id}`} value={category} onValueChange={setCategory} disabled={processing}>
-                <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {!initialized ? (
+                <div className="h-10 rounded animate-pulse" style={{ background: 'var(--border)' }} />
+              ) : (
+                <Select value={category} onValueChange={setCategory} disabled={processing}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div className="space-y-1">
               <Label>Pagamento</Label>
-              <Select key={`pay-${expense?.id}`} value={paymentMethod} onValueChange={setPaymentMethod} disabled={processing}>
-                <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                <SelectContent>
-                  {PAYMENT_METHODS.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {!initialized ? (
+                <div className="h-10 rounded animate-pulse" style={{ background: 'var(--border)' }} />
+              ) : (
+                <Select value={paymentMethod} onValueChange={setPaymentMethod} disabled={processing}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_METHODS.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div className="space-y-1">
