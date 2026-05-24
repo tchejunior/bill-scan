@@ -14,4 +14,5 @@ export const receiptsApi = {
     form.append('file', blob, filename)
     return apiFetch<Receipt>('/receipts', { method: 'POST', body: form })
   },
+  delete: (id: string) => apiFetch<void>(`/receipts/${id}`, { method: 'DELETE' }),
 }

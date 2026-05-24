@@ -4,6 +4,7 @@ import Cropper from 'cropperjs'
 import 'cropperjs/dist/cropper.min.css'
 import { useScanStore } from '@/store/scanStore'
 import { receiptsApi } from '@/api/receipts'
+import { expensesApi } from '@/api/expenses'
 import { useQueryClient } from '@tanstack/react-query'
 
 export function CropPage() {
@@ -11,6 +12,9 @@ export function CropPage() {
   const queryClient = useQueryClient()
   const blob = useScanStore((s) => s.capturedBlob)
   const setBlob = useScanStore((s) => s.setBlob)
+  const retakeExpenseId = useScanStore((s) => s.retakeExpenseId)
+  const retakeOldReceiptId = useScanStore((s) => s.retakeOldReceiptId)
+  const clearRetake = useScanStore((s) => s.clearRetake)
   const imgRef = useRef<HTMLImageElement>(null)
   const cropperRef = useRef<Cropper | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -55,11 +59,23 @@ export function CropPage() {
           .toBlob(async (croppedBlob) => {
             if (!croppedBlob || croppedBlob.size === 0) { reject(new Error('Failed to crop image')); return }
             try {
-              await receiptsApi.upload(croppedBlob, 'receipt.jpg')
-              queryClient.invalidateQueries({ queryKey: ['receipts'] })
-              queryClient.invalidateQueries({ queryKey: ['expenses'] })
-              setBlob(null)
-              navigate('/')
+              const receipt = await receiptsApi.upload(croppedBlob, 'receipt.jpg')
+              if (retakeExpenseId) {
+                await expensesApi.update(retakeExpenseId, { receipt_id: receipt.id })
+                if (retakeOldReceiptId) {
+                  await receiptsApi.delete(retakeOldReceiptId).catch(() => null)
+                }
+                clearRetake()
+                queryClient.invalidateQueries({ queryKey: ['receipts'] })
+                queryClient.invalidateQueries({ queryKey: ['expenses'] })
+                setBlob(null)
+                navigate(`/expense/${retakeExpenseId}`)
+              } else {
+                queryClient.invalidateQueries({ queryKey: ['receipts'] })
+                queryClient.invalidateQueries({ queryKey: ['expenses'] })
+                setBlob(null)
+                navigate('/')
+              }
               resolve()
             } catch (err) {
               reject(err)

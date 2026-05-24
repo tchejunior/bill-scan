@@ -3,6 +3,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.database import get_db
+from app.models.expense import Expense
 from app.models.receipt import Receipt
 from app.models.user import User
 from app.schemas.receipt import ReceiptRead
@@ -86,3 +87,28 @@ def get_receipt_image(
     return Response(content=data, media_type="image/webp", headers={
         "Cache-Control": "private, max-age=3600",
     })
+
+
+@router.delete("/{receipt_id}", status_code=204)
+def delete_receipt(
+    receipt_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    receipt = db.query(Receipt).filter(
+        Receipt.id == receipt_id, Receipt.user_id == current_user.id
+    ).first()
+    if not receipt:
+        raise HTTPException(status_code=404, detail="Receipt not found")
+    # Detach from any expenses before deleting to satisfy FK constraint
+    db.query(Expense).filter(
+        Expense.receipt_id == receipt_id,
+        Expense.user_id == current_user.id,
+    ).update({"receipt_id": None})
+    db.flush()
+    try:
+        storage.delete(receipt.image_path)
+    except Exception:
+        pass
+    db.delete(receipt)
+    db.commit()

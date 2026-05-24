@@ -25,6 +25,7 @@ class ExpenseUpdate(BaseModel):
     category: Optional[str] = None
     payment_method: Optional[PaymentMethod] = None
     notes: Optional[str] = None
+    receipt_id: Optional[UUID] = None
 
 
 class ExpenseRead(BaseModel):

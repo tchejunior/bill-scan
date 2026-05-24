@@ -3,6 +3,8 @@ import type { LineItem } from '@/api/expenses'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { expensesApi, type Expense } from '@/api/expenses'
+import { receiptsApi } from '@/api/receipts'
+import { useScanStore } from '@/store/scanStore'
 import { SkeletonCard } from '@/components/SkeletonCard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,9 +12,17 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
-function ReceiptImage({ receiptId }: { receiptId: string }) {
+function ReceiptImage({ receiptId, expenseId, onRemoved }: {
+  receiptId: string
+  expenseId: string
+  onRemoved: () => void
+}) {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const setRetake = useScanStore((s) => s.setRetake)
   const [open, setOpen] = useState(false)
   const [scale, setScale] = useState(1)
+  const [removing, setRemoving] = useState(false)
   const lastDist = useRef<number | null>(null)
   const imgSrc = `/api/receipts/${receiptId}/image`
 
@@ -37,6 +47,26 @@ function ReceiptImage({ receiptId }: { receiptId: string }) {
   }, [])
 
   const onTouchEnd = useCallback(() => { lastDist.current = null }, [])
+
+  async function handleRemove() {
+    if (!confirm('Remover a imagem do recibo?')) return
+    setRemoving(true)
+    try {
+      await receiptsApi.delete(receiptId)
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['receipts'] })
+      setOpen(false)
+      onRemoved()
+    } catch {
+      alert('Erro ao remover recibo')
+      setRemoving(false)
+    }
+  }
+
+  function handleRetake() {
+    setRetake(expenseId, receiptId)
+    navigate('/scan')
+  }
 
   return (
     <>
@@ -75,17 +105,28 @@ function ReceiptImage({ receiptId }: { receiptId: string }) {
             <img
               src={imgSrc}
               alt="Recibo"
-              style={{
-                width: `${scale * 100}%`,
-                maxWidth: 'none',
-                display: 'block',
-                transformOrigin: 'top left',
-              }}
+              style={{ width: `${scale * 100}%`, maxWidth: 'none', display: 'block' }}
             />
           </div>
-          <p className="text-center text-xs pb-4" style={{ color: 'rgba(255,255,255,0.4)' }}>
-            Pinça para zoom
-          </p>
+          <div className="flex gap-3 px-4 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <button
+              type="button"
+              onClick={handleRetake}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
+              style={{ background: 'rgba(255,255,255,0.12)' }}
+            >
+              📷 Refazer foto
+            </button>
+            <button
+              type="button"
+              onClick={handleRemove}
+              disabled={removing}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+              style={{ background: 'rgba(255,59,48,0.2)', color: '#ff3b30' }}
+            >
+              🗑️ Remover
+            </button>
+          </div>
         </div>
       )}
     </>
@@ -195,7 +236,11 @@ export function ExpensePage() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {expense?.receipt_id && !processing && (
-              <ReceiptImage receiptId={expense.receipt_id} />
+              <ReceiptImage
+                receiptId={expense.receipt_id}
+                expenseId={expense.id}
+                onRemoved={() => queryClient.invalidateQueries({ queryKey: ['expense', id] })}
+              />
             )}
 
             <div className="space-y-1">
@@ -320,6 +365,21 @@ export function ExpensePage() {
             >
               {mutation.isPending ? 'Salvando…' : 'Salvar'}
             </Button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!confirm('Excluir esta despesa?')) return
+                expensesApi.delete(id!).then(() => {
+                  queryClient.invalidateQueries({ queryKey: ['expenses'] })
+                  navigate('/')
+                })
+              }}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold"
+              style={{ color: '#ff3b30', background: 'rgba(255,59,48,0.08)' }}
+            >
+              Excluir despesa
+            </button>
           </form>
         )}
       </div>

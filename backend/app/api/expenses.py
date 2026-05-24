@@ -76,6 +76,8 @@ def update_expense(
         expense.vendor = data.pop('merchant')
     if 'amount' in data:
         expense.total_amount = Decimal(data.pop('amount')) / 100
+    if 'receipt_id' in data:
+        expense.receipt_id = data.pop('receipt_id')
     for field, value in data.items():
         setattr(expense, field, value)
     db.commit()
