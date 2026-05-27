@@ -9,12 +9,23 @@ from app.models.user import User
 from app.schemas.receipt import ReceiptRead
 from app.services.image import process_image
 from app.services.storage import storage
+from app.services.edge_detection import detect_document_corners
 from app.worker.tasks import process_receipt
 import uuid
 
 router = APIRouter(prefix="/api/receipts", tags=["receipts"])
 
 _ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
+
+
+@router.post("/detect-edges")
+async def detect_edges(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    raw = await file.read()
+    points = detect_document_corners(raw)
+    return {"points": points}
 
 
 @router.post("", response_model=ReceiptRead, status_code=202)

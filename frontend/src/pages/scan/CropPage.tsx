@@ -1,40 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Cropper from 'cropperjs'
+import 'cropperjs/dist/cropper.min.css'
 import { useScanStore } from '@/store/scanStore'
 import { receiptsApi } from '@/api/receipts'
 import { expensesApi } from '@/api/expenses'
 import { useQueryClient } from '@tanstack/react-query'
-
-function autoCrop(blob: Blob): Promise<{ cropped: Blob; previewUrl: string }> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(blob)
-    const img = new Image()
-    img.onload = () => {
-      URL.revokeObjectURL(url)
-      const ratio = 0.9
-      const sw = img.naturalWidth * ratio
-      const sh = img.naturalHeight * ratio
-      const sx = (img.naturalWidth - sw) / 2
-      const sy = (img.naturalHeight - sh) / 2
-      const maxDim = 1920
-      const scale = Math.min(maxDim / sw, maxDim / sh, 1)
-      const canvas = document.createElement('canvas')
-      canvas.width = Math.round(sw * scale)
-      canvas.height = Math.round(sh * scale)
-      canvas.getContext('2d')!.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
-      canvas.toBlob(
-        (b) => {
-          if (!b) { reject(new Error('crop failed')); return }
-          resolve({ cropped: b, previewUrl: URL.createObjectURL(b) })
-        },
-        'image/jpeg',
-        0.9,
-      )
-    }
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('load failed')) }
-    img.src = url
-  })
-}
 
 export function CropPage() {
   const navigate = useNavigate()
@@ -45,32 +16,76 @@ export function CropPage() {
   const retakeOldReceiptId = useScanStore((s) => s.retakeOldReceiptId)
   const clearRetake = useScanStore((s) => s.clearRetake)
 
-  const croppedRef = useRef<Blob | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [processing, setProcessing] = useState(true)
-  const [uploading, setUploading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
+  const cropperRef = useRef<Cropper | null>(null)
+  const cropperReadyRef = useRef(false)
+  const detectedCropRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null)
 
+  const [uploading, setUploading] = useState(false)
+  const [imgSrc, setImgSrc] = useState<string | null>(null)
+  const [imageLoaded, setImageLoaded] = useState(false)
+  const [detecting, setDetecting] = useState(true)
+
+  // Apply detected crop box once both Cropper and detection are ready
+  const applyDetectedCrop = useCallback(() => {
+    if (!cropperRef.current || !cropperReadyRef.current || !detectedCropRef.current) return
+    cropperRef.current.setData(detectedCropRef.current)
+  }, [])
+
+  // Load blob → object URL
   useEffect(() => {
     if (!blob) { navigate('/scan'); return }
-    let cancelled = false
-    autoCrop(blob)
-      .then(({ cropped, previewUrl: url }) => {
-        if (cancelled) { URL.revokeObjectURL(url); return }
-        croppedRef.current = cropped
-        setPreviewUrl(url)
-        setProcessing(false)
-      })
-      .catch(() => {
-        if (!cancelled) setError('Não foi possível processar a imagem')
-      })
-    return () => { cancelled = true }
+    setImageLoaded(false)
+    const url = URL.createObjectURL(blob)
+    setImgSrc(url)
+    return () => URL.revokeObjectURL(url)
   }, [blob, navigate])
 
+  // Init Cropper.js once image is in the DOM
   useEffect(() => {
-    const url = previewUrl
-    return () => { if (url) URL.revokeObjectURL(url) }
-  }, [previewUrl])
+    if (!imgSrc || !imgRef.current || !imageLoaded) return
+    const cropper = new Cropper(imgRef.current, {
+      viewMode: 1,
+      autoCropArea: 0.9,
+      movable: true,
+      zoomable: true,
+      rotatable: false,
+      ready() {
+        cropperReadyRef.current = true
+        applyDetectedCrop()
+      },
+    })
+    cropperRef.current = cropper
+    return () => {
+      cropper.destroy()
+      cropperRef.current = null
+      cropperReadyRef.current = false
+    }
+  }, [imgSrc, imageLoaded, applyDetectedCrop])
+
+  // Run edge detection in background as soon as blob arrives
+  useEffect(() => {
+    if (!blob) return
+    let cancelled = false
+    receiptsApi.detectEdges(blob)
+      .then(({ points }) => {
+        if (cancelled || !points || points.length !== 4) return
+        const xs = points.map((p) => p.x)
+        const ys = points.map((p) => p.y)
+        const x = Math.min(...xs)
+        const y = Math.min(...ys)
+        detectedCropRef.current = {
+          x,
+          y,
+          width: Math.max(...xs) - x,
+          height: Math.max(...ys) - y,
+        }
+        applyDetectedCrop()
+      })
+      .catch(() => {/* silent — user adjusts manually */})
+      .finally(() => { if (!cancelled) setDetecting(false) })
+    return () => { cancelled = true }
+  }, [blob, applyDetectedCrop])
 
   function handleRetake() {
     setBlob(null)
@@ -78,46 +93,62 @@ export function CropPage() {
   }
 
   async function handleConfirm() {
-    const cropped = croppedRef.current
-    if (!cropped || uploading) return
+    if (!cropperRef.current || uploading) return
     setUploading(true)
     try {
-      const receipt = await receiptsApi.upload(cropped, 'receipt.jpg')
-      if (retakeExpenseId) {
-        await expensesApi.update(retakeExpenseId, { receipt_id: receipt.id })
-        if (retakeOldReceiptId) await receiptsApi.delete(retakeOldReceiptId).catch(() => null)
-        clearRetake()
-        queryClient.invalidateQueries({ queryKey: ['receipts'] })
-        queryClient.invalidateQueries({ queryKey: ['expenses'] })
-        setBlob(null)
-        navigate(`/expense/${retakeExpenseId}`)
-      } else {
-        queryClient.invalidateQueries({ queryKey: ['receipts'] })
-        queryClient.invalidateQueries({ queryKey: ['expenses'] })
-        setBlob(null)
-        navigate('/dashboard')
-      }
+      await new Promise<void>((resolve, reject) => {
+        cropperRef.current!.getCroppedCanvas({ maxWidth: 1920, maxHeight: 1920 })
+          .toBlob(async (croppedBlob) => {
+            if (!croppedBlob || croppedBlob.size === 0) { reject(new Error('Failed to crop image')); return }
+            try {
+              const receipt = await receiptsApi.upload(croppedBlob, 'receipt.jpg')
+              if (retakeExpenseId) {
+                await expensesApi.update(retakeExpenseId, { receipt_id: receipt.id })
+                if (retakeOldReceiptId) await receiptsApi.delete(retakeOldReceiptId).catch(() => null)
+                clearRetake()
+                queryClient.invalidateQueries({ queryKey: ['receipts'] })
+                queryClient.invalidateQueries({ queryKey: ['expenses'] })
+                setBlob(null)
+                navigate(`/expense/${retakeExpenseId}`)
+              } else {
+                queryClient.invalidateQueries({ queryKey: ['receipts'] })
+                queryClient.invalidateQueries({ queryKey: ['expenses'] })
+                setBlob(null)
+                navigate('/dashboard')
+              }
+              resolve()
+            } catch (err) { reject(err) }
+          }, 'image/jpeg', 0.9)
+      })
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao enviar recibo')
       setUploading(false)
     }
   }
 
+  if (!imgSrc) return null
+
   return (
     <div className="fixed inset-0 flex flex-col" style={{ background: '#000' }}>
-      <div className="flex-1 relative overflow-hidden flex items-center justify-center">
-        {processing && !error && (
-          <span className="text-white text-sm" style={{ opacity: 0.6 }}>Processando…</span>
-        )}
-        {error && (
-          <p className="text-red-400 text-sm text-center px-8">{error}</p>
-        )}
-        {previewUrl && (
-          <img
-            src={previewUrl}
-            alt="Recibo"
-            className="w-full h-full object-contain"
-          />
+      <div className="flex-1 overflow-hidden relative">
+        <img
+          ref={imgRef}
+          src={imgSrc}
+          alt="Recibo"
+          onLoad={() => setImageLoaded(true)}
+          style={{ maxWidth: '100%', display: 'block' }}
+        />
+        {detecting && (
+          <div
+            className="absolute bottom-3 left-0 right-0 flex justify-center pointer-events-none"
+          >
+            <span
+              className="text-xs font-medium px-3 py-1.5 rounded-full"
+              style={{ background: 'rgba(0,0,0,0.6)', color: 'rgba(255,255,255,0.8)' }}
+            >
+              Detectando bordas…
+            </span>
+          </div>
         )}
       </div>
 
@@ -131,9 +162,9 @@ export function CropPage() {
         </button>
         <button
           onClick={handleConfirm}
-          disabled={processing || uploading || !!error}
+          disabled={uploading}
           className="flex-1 py-3 rounded-xl text-sm font-semibold text-white"
-          style={{ background: 'var(--accent)', opacity: processing || uploading ? 0.6 : 1 }}
+          style={{ background: 'var(--accent)' }}
         >
           {uploading ? 'Enviando…' : 'Confirmar'}
         </button>
