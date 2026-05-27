@@ -200,6 +200,17 @@ export function ExpensePage() {
     [allExpenses],
   )
 
+  const merchantCategoryMap = useMemo(() => {
+    if (!allExpenses) return {} as Record<string, string>
+    return allExpenses
+      .filter((e) => e.merchant && e.category)
+      .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
+      .reduce<Record<string, string>>((acc, e) => {
+        if (!acc[e.merchant]) acc[e.merchant] = e.category
+        return acc
+      }, {})
+  }, [allExpenses])
+
   const [merchant, setMerchant] = useState('')
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState('')
@@ -292,7 +303,13 @@ export function ExpensePage() {
                   <Input
                     list="merchant-suggestions"
                     value={merchant}
-                    onChange={(e) => setMerchant(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setMerchant(val)
+                      if (initialized && merchantCategoryMap[val]) {
+                        setCategory(merchantCategoryMap[val])
+                      }
+                    }}
                   />
                   <datalist id="merchant-suggestions">
                     {merchants.map((m) => <option key={m} value={m} />)}

@@ -93,6 +93,17 @@ export function ManualEntryPage() {
     [expenses],
   )
 
+  const merchantCategoryMap = useMemo(() => {
+    if (!expenses) return {} as Record<string, string>
+    return expenses
+      .filter((e) => e.merchant && e.category)
+      .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
+      .reduce<Record<string, string>>((acc, e) => {
+        if (!acc[e.merchant]) acc[e.merchant] = e.category
+        return acc
+      }, {})
+  }, [expenses])
+
   const mutation = useMutation({
     mutationFn: expensesApi.create,
     onSuccess: () => {
@@ -280,7 +291,13 @@ export function ManualEntryPage() {
             <Input
               list="merchant-suggestions"
               value={merchant}
-              onChange={(e) => setMerchant(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value
+                setMerchant(val)
+                if (!category && merchantCategoryMap[val]) {
+                  setCategory(merchantCategoryMap[val])
+                }
+              }}
               placeholder="Ex: Supermercado Extra"
             />
             <datalist id="merchant-suggestions">
