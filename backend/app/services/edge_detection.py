@@ -15,10 +15,9 @@ def _order_points(pts: np.ndarray) -> np.ndarray:
 
 def _find_quad(edges: np.ndarray, image_area: int) -> np.ndarray | None:
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-    closed = cv2.dilate(edges, kernel, iterations=2)
-    closed = cv2.morphologyEx(closed, cv2.MORPH_CLOSE, kernel, iterations=3)
+    dilated = cv2.dilate(edges, kernel, iterations=1)
 
-    contours, _ = cv2.findContours(closed, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(dilated, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     contours = sorted(contours, key=cv2.contourArea, reverse=True)
 
     for contour in contours[:15]:
@@ -46,35 +45,28 @@ def detect_document_corners(image_bytes: bytes) -> list[dict] | None:
         return None
 
     h, w = img.shape[:2]
+    image_area = h * w
 
-    # Downscale for processing — full resolution is unnecessary for quad detection
-    max_dim = 1024
-    scale = min(max_dim / w, max_dim / h, 1.0)
-    proc = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA) if scale < 1.0 else img
-    ph, pw = proc.shape[:2]
-    image_area = ph * pw
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
-    gray = cv2.cvtColor(proc, cv2.COLOR_BGR2GRAY)
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     enhanced = clahe.apply(gray)
+    enhanced_blurred = cv2.GaussianBlur(enhanced, (5, 5), 0)
 
-    # Each strategy is tried in order; first one that finds a quad wins.
-    # Low-contrast images need CLAHE + low Canny thresholds.
-    # High-contrast images are caught by any strategy, including the last fallback.
+    # Original approach first — keeps high-contrast detection unchanged.
+    # CLAHE variants are fallbacks for low-contrast backgrounds only.
     strategies = [
-        lambda g, e: cv2.Canny(cv2.GaussianBlur(e, (5, 5), 0), 20, 60),   # CLAHE + very low
-        lambda g, e: cv2.Canny(cv2.GaussianBlur(e, (5, 5), 0), 30, 90),   # CLAHE + low
-        lambda g, e: cv2.Canny(cv2.bilateralFilter(g, 9, 75, 75), 25, 75), # bilateral + low
-        lambda g, e: cv2.Canny(cv2.GaussianBlur(e, (5, 5), 0), 50, 150),  # CLAHE + medium
-        lambda g, e: cv2.Canny(cv2.GaussianBlur(g, (5, 5), 0), 75, 200),  # original fallback
+        cv2.Canny(blurred, 75, 200),
+        cv2.Canny(enhanced_blurred, 50, 150),
+        cv2.Canny(enhanced_blurred, 30, 90),
+        cv2.Canny(cv2.bilateralFilter(gray, 9, 75, 75), 30, 90),
     ]
 
-    for strategy in strategies:
-        edges = strategy(gray, enhanced)
+    for edges in strategies:
         pts = _find_quad(edges, image_area)
         if pts is not None:
             ordered = _order_points(pts)
-            inv = 1.0 / scale
-            return [{"x": int(p[0] * inv), "y": int(p[1] * inv)} for p in ordered]
+            return [{"x": int(p[0]), "y": int(p[1])} for p in ordered]
 
     return None
