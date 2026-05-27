@@ -1,10 +1,12 @@
 import uuid as uuid_lib
 from decimal import Decimal
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.database import get_db
 from app.models.expense import Expense
+from app.models.receipt import Receipt, ReceiptStatus
 from app.models.user import User
 from app.schemas.expense import ExpenseCreate, ExpenseRead, ExpenseUpdate
 
@@ -39,6 +41,16 @@ def create_expense(
         receipt_id=body.receipt_id,
     )
     db.add(expense)
+
+    if body.receipt_id:
+        receipt = db.query(Receipt).filter(
+            Receipt.id == body.receipt_id,
+            Receipt.user_id == current_user.id,
+        ).first()
+        if receipt and receipt.status == ReceiptStatus.failed:
+            receipt.status = ReceiptStatus.processed
+            receipt.processed_at = datetime.now(timezone.utc)
+
     db.commit()
     db.refresh(expense)
     return expense
