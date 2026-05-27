@@ -66,7 +66,7 @@ def summary(
             for r in by_cat
         ],
         by_payment_method=[
-            PaymentBreakdown(payment_method=str(r.payment_method or "other"),
+            PaymentBreakdown(payment_method=r.payment_method.value if r.payment_method else "other",
                              amount=r.amount, count=r.count)
             for r in by_pm
         ],
