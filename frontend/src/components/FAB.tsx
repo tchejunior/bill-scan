@@ -38,6 +38,13 @@ export function FAB() {
           <button
             className="flex items-center gap-3 px-5 py-3 w-full text-left text-sm hover:opacity-80"
             style={{ color: 'var(--text)', borderTop: '1px solid var(--border)' }}
+            onClick={() => { setOpen(false); navigate('/scan/bulk') }}
+          >
+            📦 <span>Enviar em lote</span>
+          </button>
+          <button
+            className="flex items-center gap-3 px-5 py-3 w-full text-left text-sm hover:opacity-80"
+            style={{ color: 'var(--text)', borderTop: '1px solid var(--border)' }}
             onClick={() => { setOpen(false); navigate('/expense/new') }}
           >
             ✏️ <span>Inserir manualmente</span>

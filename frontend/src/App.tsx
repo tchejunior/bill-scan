@@ -11,12 +11,13 @@ import { RegisterPage } from '@/pages/auth/RegisterPage'
 import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { ScanPage } from '@/pages/scan/ScanPage'
 import { CropPage } from '@/pages/scan/CropPage'
+import { BulkUploadPage } from '@/pages/scan/BulkUploadPage'
 import { ExpensePage } from '@/pages/expense/ExpensePage'
 import { ManualEntryPage } from '@/pages/expense/ManualEntryPage'
 import { ReportsPage } from '@/pages/reports/ReportsPage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
 
-const NO_NAV_ROUTES = ['/', '/login', '/register', '/scan', '/scan/crop']
+const NO_NAV_ROUTES = ['/', '/login', '/register', '/scan', '/scan/crop', '/scan/bulk']
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth()
@@ -51,6 +52,7 @@ function Shell() {
         <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
         <Route path="/scan" element={<PrivateRoute><ScanPage /></PrivateRoute>} />
         <Route path="/scan/crop" element={<PrivateRoute><CropPage /></PrivateRoute>} />
+        <Route path="/scan/bulk" element={<PrivateRoute><BulkUploadPage /></PrivateRoute>} />
         <Route path="/expense/new" element={<PrivateRoute><ManualEntryPage /></PrivateRoute>} />
         <Route path="/expense/:id" element={<PrivateRoute><ExpensePage /></PrivateRoute>} />
         <Route path="/reports" element={<PrivateRoute><ReportsPage /></PrivateRoute>} />

@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { expensesApi } from '@/api/expenses'
@@ -27,6 +28,23 @@ export function DashboardPage() {
   ) ?? []
 
   const failedReceipts = receipts?.filter((r) => r.status === 'failed') ?? []
+
+  const duplicateIds = useMemo(() => {
+    if (!expenses) return new Set<string>()
+    const groups = new Map<string, string[]>()
+    for (const e of expenses) {
+      if (!e.merchant) continue
+      const key = `${e.merchant.toLowerCase().trim()}|${e.date}|${e.amount}`
+      const ids = groups.get(key) ?? []
+      ids.push(e.id)
+      groups.set(key, ids)
+    }
+    const dupes = new Set<string>()
+    for (const ids of groups.values()) {
+      if (ids.length > 1) ids.forEach((id) => dupes.add(id))
+    }
+    return dupes
+  }, [expenses])
 
   const totalCents = expenses?.reduce((sum, e) => sum + e.amount, 0) ?? 0
 
@@ -102,7 +120,7 @@ export function DashboardPage() {
                 ✕ Falhou
               </span>
               <button
-                onClick={() => navigate('/expense/manual', { state: { receiptId: r.id } })}
+                onClick={() => navigate('/expense/new', { state: { receiptId: r.id } })}
                 className="text-xs font-semibold px-3 py-1 rounded-full"
                 style={{ background: 'var(--accent)', color: '#fff' }}
               >
@@ -115,7 +133,7 @@ export function DashboardPage() {
         {/* Expense list */}
         {expLoading
           ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
-          : expenses?.map((e) => <ExpenseCard key={e.id} expense={e} />)
+          : expenses?.map((e) => <ExpenseCard key={e.id} expense={e} isDuplicate={duplicateIds.has(e.id)} />)
         }
 
         {expenses?.length === 0 && !expLoading && (
