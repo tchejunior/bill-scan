@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useSSE } from '@/hooks/useSSE'
 import { BottomNav } from '@/components/BottomNav'
 import { FAB } from '@/components/FAB'
+import { SideNav } from '@/components/SideNav'
 import { LandingPage } from '@/pages/landing/LandingPage'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterPage } from '@/pages/auth/RegisterPage'
@@ -44,7 +45,8 @@ function Shell() {
   useSSE()
 
   return (
-    <div style={{ paddingBottom: showNav ? '4rem' : 0 }}>
+    <div className={showNav ? 'pb-16 md:pb-0 md:pl-56' : ''}>
+      {showNav && <SideNav />}
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />

@@ -9,7 +9,7 @@ const tabs = [
 export function BottomNav() {
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 flex border-t"
+      className="fixed bottom-0 left-0 right-0 flex border-t md:hidden"
       style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
     >
       {tabs.map((tab) => (

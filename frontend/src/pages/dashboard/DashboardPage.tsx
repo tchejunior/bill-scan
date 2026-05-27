@@ -55,7 +55,7 @@ export function DashboardPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <div className="max-w-lg mx-auto px-4 pt-6 pb-2">
+      <div className="max-w-lg md:max-w-2xl mx-auto px-4 pt-6 pb-2">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>

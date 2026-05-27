@@ -16,7 +16,7 @@ export function FAB() {
 
       <button
         onClick={() => setOpen((v) => !v)}
-        className="fixed bottom-20 right-4 z-50 w-14 h-14 rounded-full text-white text-2xl shadow-lg flex items-center justify-center"
+        className="fixed bottom-20 right-4 z-50 w-14 h-14 rounded-full text-white text-2xl shadow-lg flex items-center justify-center md:hidden"
         style={{ background: 'var(--accent)' }}
         aria-label="Nova despesa"
       >

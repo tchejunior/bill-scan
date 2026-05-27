@@ -39,7 +39,7 @@ export function SettingsPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <div className="max-w-lg mx-auto px-4 pt-6 pb-24">
+      <div className="max-w-lg mx-auto px-4 pt-6 pb-24 md:pb-8">
         <h1 className="text-lg font-bold mb-6" style={{ color: 'var(--text)' }}>Configurações</h1>
 
         {/* Account section */}
