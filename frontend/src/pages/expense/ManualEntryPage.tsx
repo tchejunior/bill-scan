@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, type FormEvent } from 'react'
+import { useState, useRef, useMemo, useCallback, type FormEvent } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { expensesApi } from '@/api/expenses'
@@ -26,6 +26,30 @@ export function ManualEntryPage() {
   const queryClient = useQueryClient()
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [scale, setScale] = useState(1)
+  const lastDist = useRef<number | null>(null)
+
+  const getDistance = (touches: React.TouchList) => {
+    const dx = touches[0].clientX - touches[1].clientX
+    const dy = touches[0].clientY - touches[1].clientY
+    return Math.sqrt(dx * dx + dy * dy)
+  }
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) lastDist.current = getDistance(e.touches)
+  }, [])
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2 && lastDist.current !== null) {
+      e.preventDefault()
+      const dist = getDistance(e.touches)
+      setScale((s) => Math.min(Math.max(s * (dist / lastDist.current!), 1), 5))
+      lastDist.current = dist
+    }
+  }, [])
+
+  const onTouchEnd = useCallback(() => { lastDist.current = null }, [])
 
   const [merchant, setMerchant] = useState('')
   const [amount, setAmount] = useState('')
@@ -97,12 +121,52 @@ export function ManualEntryPage() {
         {/* Receipt attachment */}
         <div className="mb-6">
           {linkedReceiptId ? (
-            <img
-              src={`/api/receipts/${linkedReceiptId}/image`}
-              alt="Recibo"
-              className="w-full rounded-xl object-cover"
-              style={{ maxHeight: 220 }}
-            />
+            <>
+              <button
+                type="button"
+                onClick={() => { setLightboxOpen(true); setScale(1) }}
+                className="w-full rounded-xl overflow-hidden"
+                style={{ border: '1px solid var(--border)', maxHeight: 220, display: 'block' }}
+              >
+                <img
+                  src={`/api/receipts/${linkedReceiptId}/image`}
+                  alt="Recibo"
+                  className="w-full object-cover"
+                  style={{ maxHeight: 220 }}
+                />
+              </button>
+              <p className="text-xs text-center mt-1" style={{ color: 'var(--text-muted)' }}>
+                Toque para ampliar
+              </p>
+
+              {lightboxOpen && (
+                <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'rgba(0,0,0,0.95)' }}>
+                  <div className="flex justify-end px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => setLightboxOpen(false)}
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-white"
+                      style={{ background: 'rgba(255,255,255,0.15)' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div
+                    className="flex-1 overflow-auto"
+                    style={{ touchAction: scale > 1 ? 'pan-x pan-y' : 'pan-x pan-y pinch-zoom' }}
+                    onTouchStart={onTouchStart}
+                    onTouchMove={onTouchMove}
+                    onTouchEnd={onTouchEnd}
+                  >
+                    <img
+                      src={`/api/receipts/${linkedReceiptId}/image`}
+                      alt="Recibo"
+                      style={{ width: `${scale * 100}%`, maxWidth: 'none', display: 'block' }}
+                    />
+                  </div>
+                </div>
+              )}
+            </>
           ) : receiptPreview ? (
             <div className="relative">
               <img
