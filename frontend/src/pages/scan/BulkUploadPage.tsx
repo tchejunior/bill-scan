@@ -116,26 +116,11 @@ export function BulkUploadPage() {
 
   function enterReview() {
     if (entries.length === 0) return
-    setEntries((prev) => prev.map((e) => ({ ...e, detecting: true, savedCrop: null })))
+    setEntries((prev) => prev.map((e) => ({ ...e, detecting: false, detectedCrop: null, savedCrop: null })))
     setPhase('review')
     setCurrentIndex(0)
     setImgLoaded(false)
     cropAdjustedRef.current = false
-
-    entries.forEach((entry, i) => {
-      receiptsApi.detectEdges(entry.file)
-        .then(({ points }) => {
-          const crop = points && points.length === 4 ? pointsToRect(points) : null
-          setEntries((prev) => prev.map((e, idx) =>
-            idx === i ? { ...e, detecting: false, detectedCrop: crop } : e,
-          ))
-        })
-        .catch(() => {
-          setEntries((prev) => prev.map((e, idx) =>
-            idx === i ? { ...e, detecting: false } : e,
-          ))
-        })
-    })
   }
 
   // ─── REVIEW ──────────────────────────────────────────────────────────────
@@ -156,11 +141,14 @@ export function BulkUploadPage() {
     setCurrentIndex(newIndex)
   }
 
-  // Init / destroy Cropper.js whenever the current image loads
+  // Init / destroy Cropper.js whenever the current image loads; also fire edge detection for this image
   useEffect(() => {
     if (phase !== 'review' || !imgLoaded || !imgRef.current) return
     const entry = entries[currentIndex]
-    const initCrop = entry?.savedCrop ?? entry?.detectedCrop ?? null
+    if (!entry) return
+    const initCrop = entry.savedCrop ?? entry.detectedCrop ?? null
+    const idx = currentIndex
+    const file = entry.file
 
     const cropper = new Cropper(imgRef.current, {
       viewMode: 1,
@@ -178,6 +166,19 @@ export function BulkUploadPage() {
       },
     })
     cropperRef.current = cropper
+
+    // Fire detection for this image if not yet attempted
+    if (!entry.detecting && !entry.detectedCrop) {
+      setEntries((prev) => prev.map((e, i) => i === idx ? { ...e, detecting: true } : e))
+      receiptsApi.detectEdges(file)
+        .then(({ points }) => {
+          const crop = points && points.length === 4 ? pointsToRect(points) : null
+          setEntries((prev) => prev.map((e, i) => i === idx ? { ...e, detecting: false, detectedCrop: crop } : e))
+        })
+        .catch(() => {
+          setEntries((prev) => prev.map((e, i) => i === idx ? { ...e, detecting: false } : e))
+        })
+    }
 
     return () => {
       cropper.destroy()
