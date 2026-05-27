@@ -150,6 +150,17 @@ export function BulkUploadPage() {
     const idx = currentIndex
     const file = entry.file
 
+    // Shared between ready() and detection .then() — whichever fires second applies the crop.
+    // Using a closure-local variable avoids cross-image races: each effect invocation owns its own.
+    let detectionResult: CropRect | null = null
+
+    function applyIfReady() {
+      const crop = initCrop ?? detectionResult
+      if (!crop || cropAdjustedRef.current || !cropperReadyRef.current || !cropperRef.current) return
+      cropperRef.current.setData(crop)
+      cropAdjustedRef.current = true
+    }
+
     const cropper = new Cropper(imgRef.current, {
       viewMode: 1,
       autoCropArea: 0.9,
@@ -159,10 +170,7 @@ export function BulkUploadPage() {
       cropend() { cropAdjustedRef.current = true },
       ready() {
         cropperReadyRef.current = true
-        if (initCrop) {
-          cropper.setData(initCrop)
-          cropAdjustedRef.current = true
-        }
+        applyIfReady()
       },
     })
     cropperRef.current = cropper
@@ -173,7 +181,9 @@ export function BulkUploadPage() {
       receiptsApi.detectEdges(file)
         .then(({ points }) => {
           const crop = points && points.length === 4 ? pointsToRect(points) : null
+          detectionResult = crop
           setEntries((prev) => prev.map((e, i) => i === idx ? { ...e, detecting: false, detectedCrop: crop } : e))
+          applyIfReady()
         })
         .catch(() => {
           setEntries((prev) => prev.map((e, i) => i === idx ? { ...e, detecting: false } : e))
