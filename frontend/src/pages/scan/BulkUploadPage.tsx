@@ -1,37 +1,47 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Cropper from 'cropperjs'
+import 'cropperjs/dist/cropper.min.css'
 import { receiptsApi } from '@/api/receipts'
 import type { DetectedPoint } from '@/api/receipts'
 
-interface FileEntry {
+type Phase = 'select' | 'review' | 'uploading' | 'done'
+type UploadStatus = 'queued' | 'uploading' | 'done' | 'error'
+type CropRect = { x: number; y: number; width: number; height: number }
+
+interface Entry {
   id: string
   file: File
   previewUrl: string
-  status: 'queued' | 'uploading' | 'done' | 'error'
+  detecting: boolean
+  detectedCrop: CropRect | null
+  savedCrop: CropRect | null
+  uploadStatus: UploadStatus
 }
 
-function cropToPoints(file: File, points: DetectedPoint[]): Promise<Blob> {
+function pointsToRect(points: DetectedPoint[]): CropRect {
+  const xs = points.map((p) => p.x)
+  const ys = points.map((p) => p.y)
+  const x = Math.min(...xs), y = Math.min(...ys)
+  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y }
+}
+
+function cropFromRect(file: File, crop: CropRect): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)
     const img = new Image()
     img.onload = () => {
       URL.revokeObjectURL(url)
-      const xs = points.map((p) => p.x)
-      const ys = points.map((p) => p.y)
-      const sx = Math.min(...xs)
-      const sy = Math.min(...ys)
-      const sw = Math.max(...xs) - sx
-      const sh = Math.max(...ys) - sy
+      const { x, y, width, height } = crop
       const maxDim = 1920
-      const scale = Math.min(maxDim / sw, maxDim / sh, 1)
+      const scale = Math.min(maxDim / width, maxDim / height, 1)
       const canvas = document.createElement('canvas')
-      canvas.width = Math.round(sw * scale)
-      canvas.height = Math.round(sh * scale)
-      canvas.getContext('2d')!.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
+      canvas.width = Math.round(width * scale)
+      canvas.height = Math.round(height * scale)
+      canvas.getContext('2d')!.drawImage(img, x, y, width, height, 0, 0, canvas.width, canvas.height)
       canvas.toBlob(
         (b) => (b ? resolve(b) : reject(new Error('crop failed'))),
-        'image/jpeg',
-        0.9,
+        'image/jpeg', 0.9,
       )
     }
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('load failed')) }
@@ -39,27 +49,24 @@ function cropToPoints(file: File, points: DetectedPoint[]): Promise<Blob> {
   })
 }
 
-function compressImage(file: File): Promise<Blob> {
+function compressFull(file: File): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)
     const img = new Image()
     img.onload = () => {
       URL.revokeObjectURL(url)
       const maxDim = 1920
-      let { width, height } = img
-      if (width > maxDim || height > maxDim) {
-        const ratio = Math.min(maxDim / width, maxDim / height)
-        width = Math.round(width * ratio)
-        height = Math.round(height * ratio)
+      let { naturalWidth: w, naturalHeight: h } = img
+      if (w > maxDim || h > maxDim) {
+        const r = Math.min(maxDim / w, maxDim / h)
+        w = Math.round(w * r); h = Math.round(h * r)
       }
       const canvas = document.createElement('canvas')
-      canvas.width = width
-      canvas.height = height
-      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
+      canvas.width = w; canvas.height = h
+      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
       canvas.toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error('compress failed'))),
-        'image/jpeg',
-        0.9,
+        (b) => (b ? resolve(b) : reject(new Error('compress failed'))),
+        'image/jpeg', 0.9,
       )
     }
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('load failed')) }
@@ -70,62 +77,268 @@ function compressImage(file: File): Promise<Blob> {
 export function BulkUploadPage() {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [entries, setEntries] = useState<FileEntry[]>([])
-  const [uploading, setUploading] = useState(false)
-  const [done, setDone] = useState(false)
+
+  const [phase, setPhase] = useState<Phase>('select')
+  const [entries, setEntries] = useState<Entry[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [imgLoaded, setImgLoaded] = useState(false)
+
+  const cropperRef = useRef<Cropper | null>(null)
+  const cropperReadyRef = useRef(false)
+  const cropAdjustedRef = useRef(false)
+  const imgRef = useRef<HTMLImageElement>(null)
+  const touchStartX = useRef(0)
+  const touchStartY = useRef(0)
+
+  // ─── SELECT ──────────────────────────────────────────────────────────────
 
   function addFiles(files: FileList | null) {
     if (!files) return
-    const next: FileEntry[] = Array.from(files).map((file) => ({
+    const next: Entry[] = Array.from(files).map((file) => ({
       id: crypto.randomUUID(),
       file,
       previewUrl: URL.createObjectURL(file),
-      status: 'queued',
+      detecting: false,
+      detectedCrop: null,
+      savedCrop: null,
+      uploadStatus: 'queued',
     }))
     setEntries((prev) => [...prev, ...next])
   }
 
   function removeEntry(id: string) {
     setEntries((prev) => {
-      const entry = prev.find((e) => e.id === id)
-      if (entry) URL.revokeObjectURL(entry.previewUrl)
-      return prev.filter((e) => e.id !== id)
+      const e = prev.find((x) => x.id === id)
+      if (e) URL.revokeObjectURL(e.previewUrl)
+      return prev.filter((x) => x.id !== id)
     })
   }
 
-  function setStatus(id: string, status: FileEntry['status']) {
-    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)))
+  function enterReview() {
+    if (entries.length === 0) return
+    setEntries((prev) => prev.map((e) => ({ ...e, detecting: true, savedCrop: null })))
+    setPhase('review')
+    setCurrentIndex(0)
+    setImgLoaded(false)
+    cropAdjustedRef.current = false
+
+    entries.forEach((entry, i) => {
+      receiptsApi.detectEdges(entry.file)
+        .then(({ points }) => {
+          const crop = points && points.length === 4 ? pointsToRect(points) : null
+          setEntries((prev) => prev.map((e, idx) =>
+            idx === i ? { ...e, detecting: false, detectedCrop: crop } : e,
+          ))
+        })
+        .catch(() => {
+          setEntries((prev) => prev.map((e, idx) =>
+            idx === i ? { ...e, detecting: false } : e,
+          ))
+        })
+    })
   }
 
-  async function handleUpload() {
-    if (uploading || entries.length === 0) return
-    setUploading(true)
-    for (const entry of entries) {
-      setStatus(entry.id, 'uploading')
-      try {
-        let blob: Blob
-        try {
-          const { points } = await receiptsApi.detectEdges(entry.file)
-          blob = points && points.length === 4
-            ? await cropToPoints(entry.file, points)
-            : await compressImage(entry.file)
-        } catch {
-          blob = await compressImage(entry.file)
+  // ─── REVIEW ──────────────────────────────────────────────────────────────
+
+  function goTo(newIndex: number) {
+    if (newIndex < 0 || newIndex >= entries.length) return
+
+    if (cropperRef.current) {
+      const d = cropperRef.current.getData(true)
+      const savedCrop: CropRect = { x: d.x, y: d.y, width: d.width, height: d.height }
+      setEntries((prev) => prev.map((e, i) => i === currentIndex ? { ...e, savedCrop } : e))
+      cropperRef.current.destroy()
+      cropperRef.current = null
+      cropperReadyRef.current = false
+    }
+    cropAdjustedRef.current = false
+    setImgLoaded(false)
+    setCurrentIndex(newIndex)
+  }
+
+  // Init / destroy Cropper.js whenever the current image loads
+  useEffect(() => {
+    if (phase !== 'review' || !imgLoaded || !imgRef.current) return
+    const entry = entries[currentIndex]
+    const initCrop = entry?.savedCrop ?? entry?.detectedCrop ?? null
+
+    const cropper = new Cropper(imgRef.current, {
+      viewMode: 1,
+      autoCropArea: 0.9,
+      movable: true,
+      zoomable: true,
+      rotatable: false,
+      cropend() { cropAdjustedRef.current = true },
+      ready() {
+        cropperReadyRef.current = true
+        if (initCrop) {
+          cropper.setData(initCrop)
+          cropAdjustedRef.current = true
         }
+      },
+    })
+    cropperRef.current = cropper
+
+    return () => {
+      cropper.destroy()
+      cropperRef.current = null
+      cropperReadyRef.current = false
+    }
+    // intentionally omit entries — only re-init when image/phase changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, currentIndex, imgLoaded])
+
+  // Apply detection result for the current image once ready, if user hasn't touched crop yet
+  useEffect(() => {
+    if (phase !== 'review') return
+    const entry = entries[currentIndex]
+    if (!entry || entry.detecting || !entry.detectedCrop) return
+    if (cropAdjustedRef.current) return
+    if (!cropperReadyRef.current || !cropperRef.current) return
+    cropperRef.current.setData(entry.detectedCrop)
+    cropAdjustedRef.current = true
+  }, [entries, currentIndex, phase])
+
+  // Swipe navigation
+  function onTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    const dy = e.changedTouches[0].clientY - touchStartY.current
+    if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      dx < 0 ? goTo(currentIndex + 1) : goTo(currentIndex - 1)
+    }
+  }
+
+  // ─── UPLOAD ──────────────────────────────────────────────────────────────
+
+  async function startUpload() {
+    // Capture current crop before destroying cropper
+    let lastCrop: CropRect | null = null
+    if (cropperRef.current) {
+      const d = cropperRef.current.getData(true)
+      lastCrop = { x: d.x, y: d.y, width: d.width, height: d.height }
+      cropperRef.current.destroy()
+      cropperRef.current = null
+      cropperReadyRef.current = false
+    }
+
+    // Build final snapshot with the last image's crop applied
+    const finalEntries = entries.map((e, i) =>
+      i === currentIndex && lastCrop ? { ...e, savedCrop: lastCrop } : e,
+    )
+
+    setPhase('uploading')
+    setEntries(finalEntries.map((e) => ({ ...e, uploadStatus: 'queued' })))
+
+    for (const entry of finalEntries) {
+      setEntries((prev) => prev.map((e) =>
+        e.id === entry.id ? { ...e, uploadStatus: 'uploading' } : e,
+      ))
+      try {
+        const crop = entry.savedCrop ?? entry.detectedCrop
+        const blob = crop && crop.width > 0 && crop.height > 0
+          ? await cropFromRect(entry.file, crop)
+          : await compressFull(entry.file)
         await receiptsApi.upload(blob, 'receipt.jpg')
-        setStatus(entry.id, 'done')
+        setEntries((prev) => prev.map((e) =>
+          e.id === entry.id ? { ...e, uploadStatus: 'done' } : e,
+        ))
       } catch {
-        setStatus(entry.id, 'error')
+        setEntries((prev) => prev.map((e) =>
+          e.id === entry.id ? { ...e, uploadStatus: 'error' } : e,
+        ))
       }
     }
-    setUploading(false)
-    setDone(true)
+    setPhase('done')
   }
 
-  const sentCount = entries.filter((e) => e.status === 'done').length
-  const errorCount = entries.filter((e) => e.status === 'error').length
-  const progressCount = sentCount + errorCount
+  // ─── RENDER ──────────────────────────────────────────────────────────────
 
+  const sentCount = entries.filter((e) => e.uploadStatus === 'done').length
+  const errorCount = entries.filter((e) => e.uploadStatus === 'error').length
+  const progressCount = sentCount + errorCount
+  const currentEntry = entries[currentIndex]
+
+  // REVIEW phase — full-screen Cropper.js
+  if (phase === 'review' && currentEntry) {
+    return (
+      <div
+        className="fixed inset-0 flex flex-col"
+        style={{ background: '#000' }}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 flex-shrink-0" style={{ background: 'rgba(0,0,0,0.7)' }}>
+          <span className="text-white text-sm font-medium">
+            {currentIndex + 1} / {entries.length}
+          </span>
+          <div className="flex items-center gap-2">
+            {currentEntry.detecting && (
+              <span
+                className="text-xs font-medium px-2.5 py-1 rounded-full"
+                style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)' }}
+              >
+                Detectando bordas…
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => { setPhase('select'); setImgLoaded(false); if (cropperRef.current) { cropperRef.current.destroy(); cropperRef.current = null } }}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm"
+            style={{ background: 'rgba(255,255,255,0.15)' }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Cropper area */}
+        <div className="flex-1 overflow-hidden">
+          <img
+            ref={imgRef}
+            src={currentEntry.previewUrl}
+            alt="Recibo"
+            onLoad={() => setImgLoaded(true)}
+            style={{ maxWidth: '100%', display: 'block' }}
+          />
+        </div>
+
+        {/* Navigation + action */}
+        <div className="flex-shrink-0 px-4 py-4 space-y-3" style={{ background: 'rgba(0,0,0,0.8)' }}>
+          <div className="flex gap-3">
+            <button
+              onClick={() => goTo(currentIndex - 1)}
+              disabled={currentIndex === 0}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
+              style={{ background: 'rgba(255,255,255,0.1)', opacity: currentIndex === 0 ? 0.3 : 1 }}
+            >
+              ← Anterior
+            </button>
+            <button
+              onClick={() => goTo(currentIndex + 1)}
+              disabled={currentIndex === entries.length - 1}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
+              style={{ background: 'rgba(255,255,255,0.1)', opacity: currentIndex === entries.length - 1 ? 0.3 : 1 }}
+            >
+              Próximo →
+            </button>
+          </div>
+          <button
+            onClick={startUpload}
+            className="w-full py-3 rounded-xl text-sm font-semibold text-white"
+            style={{ background: 'var(--accent)' }}
+          >
+            Enviar {entries.length} recibo{entries.length !== 1 ? 's' : ''}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // SELECT / UPLOADING / DONE phases — grid view
   return (
     <div className="fixed inset-0 flex flex-col" style={{ background: 'var(--bg)' }}>
       <div
@@ -134,7 +347,7 @@ export function BulkUploadPage() {
       >
         <button onClick={() => navigate(-1)} style={{ color: 'var(--text-muted)' }}>←</button>
         <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Enviar em lote</h1>
-        {entries.length > 0 && !uploading && !done && (
+        {entries.length > 0 && phase === 'select' && (
           <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>
             {entries.length} imagem{entries.length !== 1 ? 'ns' : ''}
           </span>
@@ -162,22 +375,22 @@ export function BulkUploadPage() {
               >
                 <img src={entry.previewUrl} alt="" className="w-full h-full object-cover" />
 
-                {entry.status === 'uploading' && (
+                {entry.uploadStatus === 'uploading' && (
                   <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)' }}>
                     <span className="text-2xl">⏳</span>
                   </div>
                 )}
-                {entry.status === 'done' && (
+                {entry.uploadStatus === 'done' && (
                   <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(52,199,89,0.35)' }}>
                     <span className="text-3xl font-bold text-white">✓</span>
                   </div>
                 )}
-                {entry.status === 'error' && (
+                {entry.uploadStatus === 'error' && (
                   <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(233,69,96,0.45)' }}>
                     <span className="text-2xl">✕</span>
                   </div>
                 )}
-                {entry.status === 'queued' && (
+                {phase === 'select' && (
                   <button
                     onClick={() => removeEntry(entry.id)}
                     className="absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
@@ -190,16 +403,11 @@ export function BulkUploadPage() {
               </div>
             ))}
 
-            {!uploading && !done && (
+            {phase === 'select' && (
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="rounded-xl flex items-center justify-center text-3xl"
-                style={{
-                  aspectRatio: '1',
-                  border: '2px dashed var(--border)',
-                  color: 'var(--text-muted)',
-                  background: 'var(--bg-card)',
-                }}
+                style={{ aspectRatio: '1', border: '2px dashed var(--border)', color: 'var(--text-muted)', background: 'var(--bg-card)' }}
                 aria-label="Adicionar mais"
               >
                 +
@@ -213,7 +421,7 @@ export function BulkUploadPage() {
         className="px-4 py-5 flex-shrink-0"
         style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-card)' }}
       >
-        {done ? (
+        {phase === 'done' ? (
           <div className="space-y-3">
             <p className="text-sm text-center" style={{ color: 'var(--text-muted)' }}>
               {sentCount} enviado{sentCount !== 1 ? 's' : ''}
@@ -227,18 +435,23 @@ export function BulkUploadPage() {
               Ver no painel
             </button>
           </div>
+        ) : phase === 'uploading' ? (
+          <button
+            disabled
+            className="w-full py-3 rounded-xl text-sm font-semibold text-white"
+            style={{ background: 'var(--accent)', opacity: 0.75 }}
+          >
+            Enviando… {progressCount}/{entries.length}
+          </button>
         ) : (
           <button
-            onClick={entries.length === 0 ? () => fileInputRef.current?.click() : handleUpload}
-            disabled={uploading}
+            onClick={entries.length === 0 ? () => fileInputRef.current?.click() : enterReview}
             className="w-full py-3 rounded-xl text-sm font-semibold text-white"
-            style={{ background: 'var(--accent)', opacity: uploading ? 0.75 : 1 }}
+            style={{ background: 'var(--accent)' }}
           >
-            {uploading
-              ? `Enviando… ${progressCount}/${entries.length}`
-              : entries.length === 0
-                ? 'Selecionar imagens'
-                : `Enviar ${entries.length} recibo${entries.length !== 1 ? 's' : ''}`}
+            {entries.length === 0
+              ? 'Selecionar imagens'
+              : `Revisar e enviar ${entries.length} recibo${entries.length !== 1 ? 's' : ''}`}
           </button>
         )}
       </div>
