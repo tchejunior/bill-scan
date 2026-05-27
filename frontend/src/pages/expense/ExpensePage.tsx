@@ -109,6 +109,24 @@ function ReceiptImage({ receiptId, expenseId, onRemoved }: {
             />
           </div>
           <div className="flex gap-3 px-4 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setScale((s) => Math.max(s - 0.5, 1))}
+                className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg font-bold"
+                style={{ background: 'rgba(255,255,255,0.15)' }}
+              >
+                −
+              </button>
+              <button
+                type="button"
+                onClick={() => setScale((s) => Math.min(s + 0.5, 5))}
+                className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg font-bold"
+                style={{ background: 'rgba(255,255,255,0.15)' }}
+              >
+                +
+              </button>
+            </div>
             <button
               type="button"
               onClick={handleRetake}

@@ -141,7 +141,25 @@ export function ManualEntryPage() {
 
               {lightboxOpen && (
                 <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'rgba(0,0,0,0.95)' }}>
-                  <div className="flex justify-end px-4 py-3">
+                  <div className="flex justify-between items-center px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setScale((s) => Math.max(s - 0.5, 1))}
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg font-bold"
+                        style={{ background: 'rgba(255,255,255,0.15)' }}
+                      >
+                        −
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setScale((s) => Math.min(s + 0.5, 5))}
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg font-bold"
+                        style={{ background: 'rgba(255,255,255,0.15)' }}
+                      >
+                        +
+                      </button>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setLightboxOpen(false)}
