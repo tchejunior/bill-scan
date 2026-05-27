@@ -3,6 +3,7 @@ import { apiFetch } from './client'
 export interface User {
   id: string
   email: string
+  display_name: string | null
 }
 
 export interface LoginRequest {
@@ -27,4 +28,7 @@ export const authApi = {
 
   me: () =>
     apiFetch<User>('/auth/me'),
+
+  updateProfile: (display_name: string) =>
+    apiFetch<User>('/auth/me', { method: 'PATCH', body: JSON.stringify({ display_name }) }),
 }

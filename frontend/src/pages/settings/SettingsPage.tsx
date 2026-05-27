@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
 import { apiFetch } from '@/api/client'
+import { authApi } from '@/api/auth'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -9,12 +11,35 @@ import { Label } from '@/components/ui/label'
 export function SettingsPage() {
   const { user, logout } = useAuth()
   const { theme, setTheme } = useTheme()
+  const queryClient = useQueryClient()
+  const [displayName, setDisplayName] = useState(user?.display_name ?? '')
+  const [nameError, setNameError] = useState('')
+  const [nameSuccess, setNameSuccess] = useState(false)
+  const [savingName, setSavingName] = useState(false)
   const [currentPw, setCurrentPw] = useState('')
   const [newPw, setNewPw] = useState('')
   const [confirmPw, setConfirmPw] = useState('')
   const [pwError, setPwError] = useState('')
   const [pwSuccess, setPwSuccess] = useState(false)
   const [changingPw, setChangingPw] = useState(false)
+
+  async function handleNameSave(e: FormEvent) {
+    e.preventDefault()
+    setNameError('')
+    setNameSuccess(false)
+    const trimmed = displayName.trim()
+    if (!trimmed) { setNameError('Nome não pode ser vazio'); return }
+    setSavingName(true)
+    try {
+      const updated = await authApi.updateProfile(trimmed)
+      queryClient.setQueryData(['auth/me'], updated)
+      setNameSuccess(true)
+    } catch (err) {
+      setNameError(err instanceof Error ? err.message : 'Erro ao salvar')
+    } finally {
+      setSavingName(false)
+    }
+  }
 
   async function handlePasswordChange(e: FormEvent) {
     e.preventDefault()
@@ -53,6 +78,29 @@ export function SettingsPage() {
           >
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>E-mail</p>
             <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{user?.email}</p>
+          </div>
+
+          <div
+            className="rounded-xl px-4 py-4 mb-4"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+          >
+            <p className="text-sm font-semibold mb-4" style={{ color: 'var(--text)' }}>Nome de exibição</p>
+            <form onSubmit={handleNameSave} className="space-y-3">
+              <div className="space-y-1">
+                <Label>Nome</Label>
+                <Input
+                  value={displayName}
+                  onChange={(e) => { setDisplayName(e.target.value); setNameSuccess(false) }}
+                  placeholder="Como você quer ser chamado"
+                  maxLength={100}
+                />
+              </div>
+              {nameError && <p className="text-sm text-red-400">{nameError}</p>}
+              {nameSuccess && <p className="text-sm" style={{ color: '#34c759' }}>Nome salvo!</p>}
+              <Button type="submit" disabled={savingName} className="w-full">
+                {savingName ? 'Salvando…' : 'Salvar nome'}
+              </Button>
+            </form>
           </div>
 
           <div

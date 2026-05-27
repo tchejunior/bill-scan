@@ -51,7 +51,7 @@ export function DashboardPage() {
   const now = new Date()
   const monthLabel = now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 
-  const firstName = user?.email.split('@')[0] ?? ''
+  const firstName = user?.display_name || user?.email.split('@')[0] || ''
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>

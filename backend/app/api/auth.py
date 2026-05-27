@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
-from app.schemas.auth import RegisterRequest, LoginRequest, UserRead, ChangePasswordRequest
+from app.schemas.auth import RegisterRequest, LoginRequest, UserRead, ChangePasswordRequest, UpdateProfileRequest
 from app.services.auth import (
     hash_password, verify_password,
     create_access_token, create_refresh_token, decode_token,
@@ -19,7 +19,11 @@ _COOKIE_OPTS = dict(httponly=True, samesite="lax", secure=settings.cookie_secure
 @router.post("/register", status_code=200)
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
     if not db.query(User).filter(User.email == body.email).first():
-        user = User(email=body.email, password_hash=hash_password(body.password))
+        user = User(
+            email=body.email,
+            password_hash=hash_password(body.password),
+            display_name=body.email.split('@')[0],
+        )
         db.add(user)
         db.commit()
     return {"detail": "If this email is not registered, your account has been created."}
@@ -68,6 +72,18 @@ def logout(response: Response):
 
 @router.get("/me", response_model=UserRead)
 def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+@router.patch("/me", response_model=UserRead)
+def update_profile(
+    body: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    current_user.display_name = body.display_name.strip()
+    db.commit()
+    db.refresh(current_user)
     return current_user
 
 
