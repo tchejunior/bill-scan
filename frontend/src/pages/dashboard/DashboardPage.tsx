@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { expensesApi } from '@/api/expenses'
 import { receiptsApi } from '@/api/receipts'
 import { ExpenseCard } from '@/components/ExpenseCard'
@@ -9,6 +10,7 @@ import { formatBRL } from '@/lib/utils'
 
 export function DashboardPage() {
   const { user } = useAuth()
+  const navigate = useNavigate()
 
   const { data: expenses, isLoading: expLoading } = useQuery({
     queryKey: ['expenses'],
@@ -23,6 +25,8 @@ export function DashboardPage() {
   const processingReceipts = receipts?.filter(
     (r) => r.status === 'pending' || r.status === 'processing'
   ) ?? []
+
+  const failedReceipts = receipts?.filter((r) => r.status === 'failed') ?? []
 
   const totalCents = expenses?.reduce((sum, e) => sum + e.amount, 0) ?? 0
 
@@ -74,6 +78,37 @@ export function DashboardPage() {
             >
               ⏳ Processando
             </span>
+          </div>
+        ))}
+
+        {/* Failed receipts */}
+        {failedReceipts.map((r) => (
+          <div
+            key={r.id}
+            className="flex items-center justify-between py-3 border-b"
+            style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+          >
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm">Leitura falhou</span>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Preencha os dados manualmente
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span
+                className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(233,69,96,0.15)', color: '#e94560' }}
+              >
+                ✕ Falhou
+              </span>
+              <button
+                onClick={() => navigate('/expense/manual', { state: { receiptId: r.id } })}
+                className="text-xs font-semibold px-3 py-1 rounded-full"
+                style={{ background: 'var(--accent)', color: '#fff' }}
+              >
+                Preencher
+              </button>
+            </div>
           </div>
         ))}
 

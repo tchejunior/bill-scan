@@ -80,12 +80,27 @@ def _run_process_receipt(receipt_id: str, db: Session) -> None:
         r.close()
 
 
+def _publish_failure(receipt_id: str, user_id: str) -> None:
+    r = redis.from_url(settings.redis_url)
+    try:
+        r.publish(
+            f"user:{user_id}:events",
+            json.dumps({"type": "receipt.failed", "receipt_id": receipt_id}),
+        )
+    finally:
+        r.close()
+
+
 @celery.task(bind=True, max_retries=3, default_retry_delay=30)
 def process_receipt(self, receipt_id: str):
     db = _get_session_factory()()
     try:
         _run_process_receipt(receipt_id, db)
     except Exception as exc:
+        if self.request.retries >= self.max_retries:
+            receipt = db.query(Receipt).filter(Receipt.id == receipt_id).first()
+            if receipt:
+                _publish_failure(receipt_id, str(receipt.user_id))
         raise self.retry(exc=exc)
     finally:
         db.close()

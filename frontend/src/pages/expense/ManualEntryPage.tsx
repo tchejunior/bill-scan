@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { expensesApi } from '@/api/expenses'
 import { receiptsApi } from '@/api/receipts'
@@ -21,6 +21,8 @@ const PAYMENT_METHODS = [
 
 export function ManualEntryPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const linkedReceiptId: string | undefined = (location.state as { receiptId?: string } | null)?.receiptId
   const queryClient = useQueryClient()
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
@@ -60,8 +62,8 @@ export function ManualEntryPage() {
     setError('')
     if (!amount || parseFloat(amount) <= 0) { setError('Informe um valor válido'); return }
 
-    let receipt_id: string | undefined
-    if (receiptFile) {
+    let receipt_id: string | undefined = linkedReceiptId
+    if (!receipt_id && receiptFile) {
       try {
         const receipt = await receiptsApi.upload(receiptFile)
         receipt_id = receipt.id
@@ -87,12 +89,21 @@ export function ManualEntryPage() {
       <div className="max-w-lg mx-auto px-4 pt-6 pb-24">
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => navigate(-1)} style={{ color: 'var(--text-muted)' }}>←</button>
-          <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Nova despesa</h1>
+          <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
+            {linkedReceiptId ? 'Preencher manualmente' : 'Nova despesa'}
+          </h1>
         </div>
 
         {/* Receipt attachment */}
         <div className="mb-6">
-          {receiptPreview ? (
+          {linkedReceiptId ? (
+            <img
+              src={`/api/receipts/${linkedReceiptId}/image`}
+              alt="Recibo"
+              className="w-full rounded-xl object-cover"
+              style={{ maxHeight: 220 }}
+            />
+          ) : receiptPreview ? (
             <div className="relative">
               <img
                 src={receiptPreview}

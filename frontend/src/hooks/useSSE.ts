@@ -18,6 +18,10 @@ export function useSSE() {
       queryClient.invalidateQueries({ queryKey: ['receipts'] })
     })
 
+    es.addEventListener('receipt.failed', () => {
+      queryClient.invalidateQueries({ queryKey: ['receipts'] })
+    })
+
     es.onerror = () => {
       // EventSource will auto-reconnect — do not call es.close() here
     }
