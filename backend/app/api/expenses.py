@@ -94,6 +94,14 @@ def update_expense(
         setattr(expense, field, value)
     if expense.status != 'reviewed':
         expense.status = 'reviewed'
+    if expense.receipt_id:
+        receipt = db.query(Receipt).filter(
+            Receipt.id == expense.receipt_id,
+            Receipt.user_id == current_user.id,
+        ).first()
+        if receipt and receipt.status in (ReceiptStatus.partial, ReceiptStatus.failed):
+            receipt.status = ReceiptStatus.processed
+            receipt.processed_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(expense)
     return expense
