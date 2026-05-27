@@ -22,9 +22,28 @@ function ReceiptImage({ receiptId, expenseId, onRemoved }: {
   const setRetake = useScanStore((s) => s.setRetake)
   const [open, setOpen] = useState(false)
   const [scale, setScale] = useState(1)
+  const [minScale, setMinScale] = useState(1)
+  const minScaleRef = useRef(1)
   const [removing, setRemoving] = useState(false)
   const lastDist = useRef<number | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
   const imgSrc = `/api/receipts/${receiptId}/image`
+
+  function onImageLoad() {
+    const img = imgRef.current
+    const container = containerRef.current
+    if (!img || !container) return
+    const { naturalWidth, naturalHeight } = img
+    const w = container.clientWidth
+    const h = container.clientHeight
+    if (!naturalWidth || !naturalHeight || !w || !h) return
+    const fit = Math.max((h * naturalWidth) / (w * naturalHeight), 0.1)
+    const ms = Math.min(fit, 1)
+    minScaleRef.current = ms
+    setMinScale(ms)
+    setScale(ms)
+  }
 
   const getDistance = (touches: React.TouchList) => {
     const dx = touches[0].clientX - touches[1].clientX
@@ -41,7 +60,7 @@ function ReceiptImage({ receiptId, expenseId, onRemoved }: {
       e.preventDefault()
       const dist = getDistance(e.touches)
       const delta = dist / lastDist.current
-      setScale(s => Math.min(Math.max(s * delta, 1), 5))
+      setScale(s => Math.min(Math.max(s * delta, minScaleRef.current), 5))
       lastDist.current = dist
     }
   }, [])
@@ -72,7 +91,7 @@ function ReceiptImage({ receiptId, expenseId, onRemoved }: {
     <>
       <button
         type="button"
-        onClick={() => { setOpen(true); setScale(1) }}
+        onClick={() => { setOpen(true); setScale(1); setMinScale(1); minScaleRef.current = 1 }}
         className="w-full rounded-xl overflow-hidden"
         style={{ border: '1px solid var(--border)', maxHeight: 180 }}
       >
@@ -96,15 +115,18 @@ function ReceiptImage({ receiptId, expenseId, onRemoved }: {
             </button>
           </div>
           <div
-            className="flex-1 overflow-auto"
-            style={{ touchAction: scale > 1 ? 'pan-x pan-y' : 'pan-x pan-y pinch-zoom' }}
+            ref={containerRef}
+            className="flex-1 overflow-auto flex justify-center items-start"
+            style={{ touchAction: scale > minScale ? 'pan-x pan-y' : 'pan-x pan-y pinch-zoom' }}
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
           >
             <img
+              ref={imgRef}
               src={imgSrc}
               alt="Recibo"
+              onLoad={onImageLoad}
               style={{ width: `${scale * 100}%`, maxWidth: 'none', display: 'block' }}
             />
           </div>
@@ -112,7 +134,7 @@ function ReceiptImage({ receiptId, expenseId, onRemoved }: {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setScale((s) => Math.max(s - 0.5, 1))}
+                onClick={() => setScale((s) => Math.max(s - 0.25, minScale))}
                 className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg font-bold"
                 style={{ background: 'rgba(255,255,255,0.15)' }}
               >
@@ -120,7 +142,7 @@ function ReceiptImage({ receiptId, expenseId, onRemoved }: {
               </button>
               <button
                 type="button"
-                onClick={() => setScale((s) => Math.min(s + 0.5, 5))}
+                onClick={() => setScale((s) => Math.min(s + 0.25, 5))}
                 className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg font-bold"
                 style={{ background: 'rgba(255,255,255,0.15)' }}
               >

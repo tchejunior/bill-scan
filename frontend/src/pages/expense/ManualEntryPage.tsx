@@ -28,7 +28,33 @@ export function ManualEntryPage() {
   const galleryInputRef = useRef<HTMLInputElement>(null)
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [scale, setScale] = useState(1)
+  const [minScale, setMinScale] = useState(1)
+  const minScaleRef = useRef(1)
   const lastDist = useRef<number | null>(null)
+  const lightboxContainerRef = useRef<HTMLDivElement>(null)
+  const lightboxImgRef = useRef<HTMLImageElement>(null)
+
+  function openLightbox() {
+    setLightboxOpen(true)
+    setScale(1)
+    setMinScale(1)
+    minScaleRef.current = 1
+  }
+
+  function onLightboxImageLoad() {
+    const img = lightboxImgRef.current
+    const container = lightboxContainerRef.current
+    if (!img || !container) return
+    const { naturalWidth, naturalHeight } = img
+    const w = container.clientWidth
+    const h = container.clientHeight
+    if (!naturalWidth || !naturalHeight || !w || !h) return
+    const fit = Math.max((h * naturalWidth) / (w * naturalHeight), 0.1)
+    const ms = Math.min(fit, 1)
+    minScaleRef.current = ms
+    setMinScale(ms)
+    setScale(ms)
+  }
 
   const getDistance = (touches: React.TouchList) => {
     const dx = touches[0].clientX - touches[1].clientX
@@ -44,7 +70,7 @@ export function ManualEntryPage() {
     if (e.touches.length === 2 && lastDist.current !== null) {
       e.preventDefault()
       const dist = getDistance(e.touches)
-      setScale((s) => Math.min(Math.max(s * (dist / lastDist.current!), 1), 5))
+      setScale((s) => Math.min(Math.max(s * (dist / lastDist.current!), minScaleRef.current), 5))
       lastDist.current = dist
     }
   }, [])
@@ -124,7 +150,7 @@ export function ManualEntryPage() {
             <>
               <button
                 type="button"
-                onClick={() => { setLightboxOpen(true); setScale(1) }}
+                onClick={openLightbox}
                 className="w-full rounded-xl overflow-hidden"
                 style={{ border: '1px solid var(--border)', maxHeight: 220, display: 'block' }}
               >
@@ -145,7 +171,7 @@ export function ManualEntryPage() {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => setScale((s) => Math.max(s - 0.5, 1))}
+                        onClick={() => setScale((s) => Math.max(s - 0.25, minScale))}
                         className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg font-bold"
                         style={{ background: 'rgba(255,255,255,0.15)' }}
                       >
@@ -153,7 +179,7 @@ export function ManualEntryPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setScale((s) => Math.min(s + 0.5, 5))}
+                        onClick={() => setScale((s) => Math.min(s + 0.25, 5))}
                         className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg font-bold"
                         style={{ background: 'rgba(255,255,255,0.15)' }}
                       >
@@ -170,15 +196,18 @@ export function ManualEntryPage() {
                     </button>
                   </div>
                   <div
-                    className="flex-1 overflow-auto"
-                    style={{ touchAction: scale > 1 ? 'pan-x pan-y' : 'pan-x pan-y pinch-zoom' }}
+                    ref={lightboxContainerRef}
+                    className="flex-1 overflow-auto flex justify-center items-start"
+                    style={{ touchAction: scale > minScale ? 'pan-x pan-y' : 'pan-x pan-y pinch-zoom' }}
                     onTouchStart={onTouchStart}
                     onTouchMove={onTouchMove}
                     onTouchEnd={onTouchEnd}
                   >
                     <img
+                      ref={lightboxImgRef}
                       src={`/api/receipts/${linkedReceiptId}/image`}
                       alt="Recibo"
+                      onLoad={onLightboxImageLoad}
                       style={{ width: `${scale * 100}%`, maxWidth: 'none', display: 'block' }}
                     />
                   </div>
