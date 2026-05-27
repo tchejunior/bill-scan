@@ -1,12 +1,42 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { receiptsApi } from '@/api/receipts'
+import type { DetectedPoint } from '@/api/receipts'
 
 interface FileEntry {
   id: string
   file: File
   previewUrl: string
   status: 'queued' | 'uploading' | 'done' | 'error'
+}
+
+function cropToPoints(file: File, points: DetectedPoint[]): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const xs = points.map((p) => p.x)
+      const ys = points.map((p) => p.y)
+      const sx = Math.min(...xs)
+      const sy = Math.min(...ys)
+      const sw = Math.max(...xs) - sx
+      const sh = Math.max(...ys) - sy
+      const maxDim = 1920
+      const scale = Math.min(maxDim / sw, maxDim / sh, 1)
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(sw * scale)
+      canvas.height = Math.round(sh * scale)
+      canvas.getContext('2d')!.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
+      canvas.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error('crop failed'))),
+        'image/jpeg',
+        0.9,
+      )
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('load failed')) }
+    img.src = url
+  })
 }
 
 function compressImage(file: File): Promise<Blob> {
@@ -73,7 +103,15 @@ export function BulkUploadPage() {
     for (const entry of entries) {
       setStatus(entry.id, 'uploading')
       try {
-        const blob = await compressImage(entry.file)
+        let blob: Blob
+        try {
+          const { points } = await receiptsApi.detectEdges(entry.file)
+          blob = points && points.length === 4
+            ? await cropToPoints(entry.file, points)
+            : await compressImage(entry.file)
+        } catch {
+          blob = await compressImage(entry.file)
+        }
         await receiptsApi.upload(blob, 'receipt.jpg')
         setStatus(entry.id, 'done')
       } catch {
