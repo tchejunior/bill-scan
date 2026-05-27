@@ -4,6 +4,15 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { reportsApi } from '@/api/reports'
 import { formatBRL } from '@/lib/utils'
 
+const PAYMENT_LABELS: Record<string, string> = {
+  cash: 'Dinheiro',
+  credit: 'Crédito',
+  debit: 'Débito',
+  pix: 'Pix',
+  boleto: 'Boleto',
+  other: 'Outro',
+}
+
 const PERIOD_OPTIONS = [
   { label: 'Último mês', months: 1 },
   { label: '3 meses', months: 3 },
@@ -142,7 +151,7 @@ export function ReportsPage() {
                     className="flex justify-between py-2 text-sm border-b"
                     style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
                   >
-                    <span style={{ color: 'var(--text-muted)' }}>{pm.method}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>{PAYMENT_LABELS[pm.method] ?? pm.method}</span>
                     <span className="font-semibold">{formatBRL(pm.total)}</span>
                   </div>
                 ))}
