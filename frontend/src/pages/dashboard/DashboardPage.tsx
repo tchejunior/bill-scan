@@ -101,41 +101,46 @@ export function DashboardPage() {
         ))}
 
         {/* Partial receipts */}
-        {partialReceipts.map((r) => (
-          <div
-            key={r.id}
-            className="flex items-center justify-between py-3 border-b gap-3"
-            style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
-          >
-            <img
-              src={`/api/receipts/${r.id}/image`}
-              alt="Recibo"
-              className="rounded-lg object-cover flex-shrink-0"
-              style={{ width: 44, height: 44 }}
-            />
-            <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-              <span className="text-sm">Leitura parcial</span>
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Alguns dados não foram detectados
-              </span>
+        {partialReceipts.map((r) => {
+          const linked = expenses?.find((e) => e.receipt_id === r.id)
+          return (
+            <div
+              key={r.id}
+              className="flex items-center justify-between py-3 border-b gap-3"
+              style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+            >
+              <img
+                src={`/api/receipts/${r.id}/image`}
+                alt="Recibo"
+                className="rounded-lg object-cover flex-shrink-0"
+                style={{ width: 44, height: 44 }}
+              />
+              <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                <span className="text-sm">Leitura parcial</span>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Alguns dados não foram detectados
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                  style={{ background: 'rgba(255,159,10,0.15)', color: '#ff9f0a' }}
+                >
+                  ⚠ Parcial
+                </span>
+                <button
+                  onClick={() => linked
+                    ? navigate(`/expense/${linked.id}`)
+                    : navigate('/expense/new', { state: { receiptId: r.id } })}
+                  className="text-xs font-semibold px-3 py-1 rounded-full"
+                  style={{ background: 'var(--accent)', color: '#fff' }}
+                >
+                  Revisar
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span
-                className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                style={{ background: 'rgba(255,159,10,0.15)', color: '#ff9f0a' }}
-              >
-                ⚠ Parcial
-              </span>
-              <button
-                onClick={() => navigate('/expense/new', { state: { receiptId: r.id } })}
-                className="text-xs font-semibold px-3 py-1 rounded-full"
-                style={{ background: 'var(--accent)', color: '#fff' }}
-              >
-                Revisar
-              </button>
-            </div>
-          </div>
-        ))}
+          )
+        })}
 
         {/* Failed receipts */}
         {failedReceipts.map((r) => (

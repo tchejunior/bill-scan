@@ -47,18 +47,19 @@ def _run_process_receipt(receipt_id: str, db: Session) -> None:
     if not isinstance(line_items, list):
         line_items = []
 
-    expense = Expense(
-        user_id=receipt.user_id,
-        receipt_id=receipt.id,
-        vendor=data.get("vendor"),
-        date=parsed_date,
-        total_amount=data.get("total_amount") or 0,
-        currency=data.get("currency", "BRL"),
-        category=data.get("suggested_category"),
-        payment_method=_PM_MAP.get(data.get("payment_method") or "", PaymentMethod.other),
-        line_items=line_items or None,
-    )
-    db.add(expense)
+    # Idempotent: reuse existing expense if this task is retried after a transient failure
+    expense = db.query(Expense).filter(Expense.receipt_id == receipt.id).first()
+    if expense is None:
+        expense = Expense(user_id=receipt.user_id, receipt_id=receipt.id)
+        db.add(expense)
+
+    expense.vendor = data.get("vendor")
+    expense.date = parsed_date
+    expense.total_amount = data.get("total_amount") or 0
+    expense.currency = data.get("currency", "BRL")
+    expense.category = data.get("suggested_category")
+    expense.payment_method = _PM_MAP.get(data.get("payment_method") or "", PaymentMethod.other)
+    expense.line_items = line_items or None
 
     is_partial = bool(data.get("_parse_error"))
     receipt.status = ReceiptStatus.partial if is_partial else ReceiptStatus.processed
