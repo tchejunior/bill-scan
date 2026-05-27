@@ -92,6 +92,8 @@ def update_expense(
         expense.receipt_id = data.pop('receipt_id')
     for field, value in data.items():
         setattr(expense, field, value)
+    if expense.status != 'reviewed':
+        expense.status = 'reviewed'
     db.commit()
     db.refresh(expense)
     return expense

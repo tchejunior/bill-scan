@@ -18,6 +18,7 @@ export interface Expense {
   receipt_id: string | null
   line_items: LineItem[] | null
   is_manual: boolean
+  status: string
 }
 
 export const expensesApi = {

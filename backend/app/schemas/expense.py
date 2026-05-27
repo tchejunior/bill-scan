@@ -26,6 +26,7 @@ class ExpenseUpdate(BaseModel):
     payment_method: Optional[PaymentMethod] = None
     notes: Optional[str] = None
     receipt_id: Optional[UUID] = None
+    status: Optional[str] = None
 
 
 class ExpenseRead(BaseModel):
@@ -43,6 +44,7 @@ class ExpenseRead(BaseModel):
     notes: Optional[str]
     line_items: Optional[list] = None
     is_manual: bool
+    status: str
     created_at: _dt.datetime
     updated_at: _dt.datetime
 
@@ -64,6 +66,7 @@ class ExpenseRead(BaseModel):
             'notes': v.notes,
             'line_items': v.line_items,
             'is_manual': v.is_manual,
+            'status': v.status,
             'created_at': v.created_at,
             'updated_at': v.updated_at,
         }

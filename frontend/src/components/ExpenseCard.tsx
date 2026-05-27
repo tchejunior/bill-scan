@@ -4,6 +4,32 @@ import { expensesApi } from '@/api/expenses'
 import type { Expense } from '@/api/expenses'
 import { formatBRL, formatDate } from '@/lib/utils'
 
+const CATEGORY_COLORS: Record<string, string> = {
+  'Alimentação': '#ff9500',
+  'Transporte': '#007aff',
+  'Saúde':      '#34c759',
+  'Lazer':      '#af52de',
+  'Moradia':    '#32ade6',
+  'Educação':   '#5856d6',
+  'Outro':      '#8e8e93',
+}
+
+function CategoryChip({ category }: { category: string }) {
+  const color = CATEGORY_COLORS[category] ?? '#8e8e93'
+  return (
+    <span
+      className="text-xs font-semibold px-1.5 py-0.5 rounded"
+      style={{
+        background: `${color}26`,
+        color,
+        lineHeight: 1,
+      }}
+    >
+      {category}
+    </span>
+  )
+}
+
 function ReceiptThumb({ receiptId }: { receiptId: string | null }) {
   if (receiptId) {
     return (
@@ -35,6 +61,7 @@ export function ExpenseCard({ expense, isDuplicate }: { expense: Expense; isDupl
   })
 
   const aiProcessed = !!expense.receipt_id && !expense.is_manual && !!expense.merchant
+  const reviewed = expense.status === 'reviewed'
 
   return (
     <div
@@ -47,6 +74,14 @@ export function ExpenseCard({ expense, isDuplicate }: { expense: Expense; isDupl
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-sm font-medium">{expense.merchant || 'Sem nome'}</span>
+          {reviewed && (
+            <span
+              className="text-xs font-semibold px-1.5 py-0.5 rounded"
+              style={{ background: 'rgba(52,199,89,0.15)', color: '#34c759', lineHeight: 1 }}
+            >
+              ✓
+            </span>
+          )}
           {isDuplicate && (
             <span
               className="text-xs font-semibold px-1.5 py-0.5 rounded"
@@ -64,8 +99,13 @@ export function ExpenseCard({ expense, isDuplicate }: { expense: Expense; isDupl
             </span>
           )}
         </div>
-        <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-          {expense.category} · {formatDate(expense.date)}
+        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+          {expense.category ? (
+            <CategoryChip category={expense.category} />
+          ) : (
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Sem categoria</span>
+          )}
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>· {formatDate(expense.date)}</span>
         </div>
       </div>
 

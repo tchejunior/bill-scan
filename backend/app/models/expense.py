@@ -30,6 +30,7 @@ class Expense(Base):
     notes = Column(Text, nullable=True)
     line_items = Column(JSONB, nullable=True)
     is_manual = Column(Boolean, server_default="false")
+    status = Column(String, server_default="pending", nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
