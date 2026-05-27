@@ -60,7 +60,8 @@ def _run_process_receipt(receipt_id: str, db: Session) -> None:
     )
     db.add(expense)
 
-    receipt.status = ReceiptStatus.processed
+    is_partial = bool(data.get("_parse_error"))
+    receipt.status = ReceiptStatus.partial if is_partial else ReceiptStatus.processed
     receipt.processed_at = datetime.now(timezone.utc)
     receipt.raw_ai_output = data
     db.commit()

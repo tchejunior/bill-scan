@@ -2,7 +2,7 @@ import { apiFetch } from './client'
 
 export interface Receipt {
   id: string
-  status: 'pending' | 'processing' | 'processed' | 'failed'
+  status: 'pending' | 'processing' | 'processed' | 'partial' | 'failed'
   created_at: string
   image_url: string
 }

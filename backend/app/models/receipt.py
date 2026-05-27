@@ -10,6 +10,7 @@ class ReceiptStatus(str, enum.Enum):
     pending = "pending"
     processing = "processing"
     processed = "processed"
+    partial = "partial"
     failed = "failed"
 
 
