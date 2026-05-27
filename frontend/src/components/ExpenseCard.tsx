@@ -73,7 +73,6 @@ export function ExpenseCard({ expense, isDuplicate }: { expense: Expense; isDupl
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-sm font-medium">{expense.merchant || 'Sem nome'}</span>
           {reviewed && (
             <span
               className="text-xs font-semibold px-1.5 py-0.5 rounded"
@@ -82,6 +81,7 @@ export function ExpenseCard({ expense, isDuplicate }: { expense: Expense; isDupl
               ✓
             </span>
           )}
+          <span className="text-sm font-medium">{expense.merchant || 'Sem nome'}</span>
           {isDuplicate && (
             <span
               className="text-xs font-semibold px-1.5 py-0.5 rounded"
