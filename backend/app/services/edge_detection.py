@@ -54,13 +54,28 @@ def detect_document_corners(image_bytes: bytes) -> list[dict] | None:
     enhanced = clahe.apply(gray)
     enhanced_blurred = cv2.GaussianBlur(enhanced, (5, 5), 0)
 
-    # Original approach first — keeps high-contrast detection unchanged.
-    # CLAHE variants are fallbacks for low-contrast backgrounds only.
+    # LAB b-channel: thermal paper is warm/yellowish (high b) vs white/neutral background.
+    # This gives color contrast where grayscale sees near-zero gradient.
+    lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+    b_chan = lab[:, :, 2]
+    b_norm = cv2.normalize(b_chan, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    b_clahe = clahe.apply(b_norm)
+    b_blurred = cv2.GaussianBlur(b_clahe, (5, 5), 0)
+
+    # Saturation channel: thermal paper often has non-zero saturation vs white background.
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    sat = hsv[:, :, 1]
+    sat_clahe = clahe.apply(sat)
+    sat_blurred = cv2.GaussianBlur(sat_clahe, (5, 5), 0)
+
+    # Strategy order: most reliable first, color-channel fallbacks for white-on-white.
     strategies = [
-        cv2.Canny(blurred, 75, 200),
-        cv2.Canny(enhanced_blurred, 50, 150),
-        cv2.Canny(enhanced_blurred, 30, 90),
-        cv2.Canny(cv2.bilateralFilter(gray, 9, 75, 75), 30, 90),
+        cv2.Canny(blurred, 75, 200),                              # original — high contrast
+        cv2.Canny(enhanced_blurred, 50, 150),                     # CLAHE grayscale — medium contrast
+        cv2.Canny(b_blurred, 30, 90),                             # LAB b-channel — warm paper vs white
+        cv2.Canny(sat_blurred, 20, 60),                           # saturation — paper vs white plastic
+        cv2.Canny(enhanced_blurred, 30, 90),                      # CLAHE grayscale — low contrast
+        cv2.Canny(cv2.bilateralFilter(gray, 9, 75, 75), 30, 90), # bilateral — edge-preserving
     ]
 
     for edges in strategies:
