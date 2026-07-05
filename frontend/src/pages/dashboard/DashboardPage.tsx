@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { creditsApi } from '@/api/credits'
 import { expensesApi } from '@/api/expenses'
 import { receiptsApi } from '@/api/receipts'
 import { ExpenseCard } from '@/components/ExpenseCard'
@@ -29,6 +30,20 @@ export function DashboardPage() {
 
   const failedReceipts = receipts?.filter((r) => r.status === 'failed') ?? []
   const partialReceipts = receipts?.filter((r) => r.status === 'partial') ?? []
+
+  const queryClient = useQueryClient()
+  const { data: credit } = useQuery({
+    queryKey: ['credits'],
+    queryFn: creditsApi.status,
+    enabled: failedReceipts.length > 0,
+  })
+  const retryMutation = useMutation({
+    mutationFn: creditsApi.retryFailed,
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['receipts'] })
+      queryClient.invalidateQueries({ queryKey: ['credits'] })
+    },
+  })
 
   const duplicateIds = useMemo(() => {
     if (!expenses) return new Set<string>()
@@ -141,6 +156,35 @@ export function DashboardPage() {
             </div>
           )
         })}
+
+        {/* Weekly retry credit banner */}
+        {failedReceipts.length > 0 && credit && (
+          <div
+            className="flex items-center justify-between py-3 px-3 mt-2 mb-1 rounded-xl gap-3"
+            style={{ background: 'rgba(233,69,96,0.08)', color: 'var(--text)' }}
+          >
+            <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+              <span className="text-sm font-semibold">
+                {failedReceipts.length} {failedReceipts.length === 1 ? 'recibo falhou' : 'recibos falharam'}
+              </span>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {credit.available
+                  ? 'Use seu crédito semanal para tentar ler novamente'
+                  : `Próximo crédito: ${new Date(credit.next_credit_at!).toLocaleDateString('pt-BR')}`}
+              </span>
+            </div>
+            {credit.available && (
+              <button
+                onClick={() => retryMutation.mutate()}
+                disabled={retryMutation.isPending}
+                className="text-xs font-semibold px-3 py-1.5 rounded-full flex-shrink-0 disabled:opacity-60"
+                style={{ background: 'var(--accent)', color: '#fff' }}
+              >
+                {retryMutation.isPending ? 'Enviando…' : 'Tentar novamente'}
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Failed receipts */}
         {failedReceipts.map((r) => (

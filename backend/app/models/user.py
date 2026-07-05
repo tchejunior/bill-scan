@@ -14,4 +14,5 @@ class User(Base):
     display_name = Column(String, nullable=True)
     is_active = Column(Boolean, server_default="true")
     otp_enabled = Column(Boolean, server_default="false")
+    retry_credit_used_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
