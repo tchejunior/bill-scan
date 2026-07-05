@@ -1,0 +1,16 @@
+- generic [ref=e5]:
+  - heading "Recibo42" [level=1] [ref=e6]
+  - paragraph [ref=e7]: Entre na sua conta
+  - generic [ref=e8]:
+    - generic [ref=e9]:
+      - text: E-mail
+      - textbox "E-mail" [ref=e10]: marcelobrigato@gmail.com
+    - generic [ref=e11]:
+      - text: Senha
+      - textbox "Senha" [ref=e12]: "123456"
+    - paragraph [ref=e16]: HTTP 404
+    - button "Entrar" [ref=e13] [cursor=pointer]
+  - paragraph [ref=e14]:
+    - text: Não tem conta?
+    - link "Criar conta" [ref=e15] [cursor=pointer]:
+      - /url: /register
