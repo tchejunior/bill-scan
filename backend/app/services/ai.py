@@ -4,7 +4,7 @@ import re
 import anthropic
 from app.config import settings
 
-_MODEL = "claude-sonnet-4-6"
+_MODEL = "claude-haiku-4-5"
 _PROMPT = (
     "Extract receipt data and return ONLY valid JSON with these exact fields:\n"
     '{"vendor": "string or null", "date": "YYYY-MM-DD or null", '
