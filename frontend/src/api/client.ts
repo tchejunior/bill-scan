@@ -2,7 +2,25 @@ import { queryClient } from '@/lib/queryClient'
 
 const BASE_URL = '/api'
 
-export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+// Endpoints where a 401 is a definitive answer, not an expired access token.
+const NO_REFRESH_PATHS = ['/auth/login', '/auth/refresh', '/auth/logout', '/auth/change-password']
+
+let refreshPromise: Promise<boolean> | null = null
+
+function tryRefresh(): Promise<boolean> {
+  refreshPromise ??= fetch(`${BASE_URL}/auth/refresh`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+    .then((r) => r.ok)
+    .catch(() => false)
+    .finally(() => {
+      refreshPromise = null
+    })
+  return refreshPromise
+}
+
+export async function apiFetch<T>(path: string, init?: RequestInit, isRetry = false): Promise<T> {
   const isFormData = init?.body instanceof FormData
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
@@ -14,6 +32,9 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   })
 
   if (res.status === 401) {
+    if (!isRetry && !NO_REFRESH_PATHS.includes(path) && (await tryRefresh())) {
+      return apiFetch(path, init, true)
+    }
     queryClient.setQueryData(['auth/me'], null)
     throw new Error('Unauthorized')
   }
