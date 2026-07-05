@@ -60,6 +60,8 @@ def refresh(
         raise HTTPException(status_code=401, detail="User not found")
     response.set_cookie("access_token", create_access_token(user.id),
                         max_age=900, path="/", **_COOKIE_OPTS)
+    response.set_cookie("refresh_token", create_refresh_token(user.id),
+                        max_age=86400 * 30, path="/api/auth/refresh", **_COOKIE_OPTS)
     return user
 
 
