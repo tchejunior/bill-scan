@@ -71,6 +71,20 @@ def test_refresh_success(client):
     assert "access_token" in resp.cookies
 
 
+def test_refresh_rotates_refresh_token(client):
+    client.post("/api/auth/register", json={
+        "email": "sliding@recibo42.com", "password": "password123"
+    })
+    login_resp = client.post("/api/auth/login", json={
+        "email": "sliding@recibo42.com", "password": "password123"
+    })
+    client.cookies.set("refresh_token", login_resp.cookies.get("refresh_token"))
+    resp = client.post("/api/auth/refresh")
+    assert resp.status_code == 200
+    # Sliding window: a fresh refresh token must be issued on every refresh
+    assert "refresh_token" in resp.cookies
+
+
 def test_protected_route_with_valid_auth(auth_client):
     resp = auth_client.get("/api/expenses")
     assert resp.status_code == 200
