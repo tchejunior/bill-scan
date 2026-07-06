@@ -5,6 +5,7 @@ import { authApi } from '@/api/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Logo } from '@/components/Logo'
 
 export function RegisterPage() {
   const navigate = useNavigate()
@@ -35,8 +36,8 @@ export function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'var(--bg)' }}>
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-center mb-2" style={{ color: 'var(--accent)' }}>
-          Recibo42
+        <h1 className="flex justify-center mb-2">
+          <Logo markSize={40} textClassName="text-2xl" stacked />
         </h1>
         <p className="text-center mb-8" style={{ color: 'var(--text-muted)' }}>
           Criar nova conta

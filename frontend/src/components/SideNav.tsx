@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useLayoutStore, type LayoutPref } from '@/store/layoutStore'
+import { Logo } from '@/components/Logo'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const LAYOUT_OPTIONS: { value: LayoutPref; label: string }[] = [
@@ -27,7 +28,7 @@ export function SideNav() {
       style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
     >
       <div className="px-5 pt-6 pb-4">
-        <span className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>Recibo42</span>
+        <Logo markSize={20} textClassName="text-sm" />
       </div>
 
       <div className="flex flex-col gap-1 px-3 flex-1">

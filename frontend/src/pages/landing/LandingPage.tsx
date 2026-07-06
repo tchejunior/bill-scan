@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
+import { Logo, LogoMark } from '@/components/Logo'
 
 const FEATURES = [
   {
@@ -42,7 +43,7 @@ export function LandingPage() {
         className="flex items-center justify-between px-5 py-4"
         style={{ borderBottom: '1px solid var(--border)' }}
       >
-        <span className="text-lg font-bold" style={{ color: 'var(--accent)' }}>Recibo42</span>
+        <Logo markSize={22} textClassName="text-lg" />
         <Link
           to="/login"
           className="px-4 py-1.5 rounded-full text-sm font-semibold"
@@ -54,7 +55,7 @@ export function LandingPage() {
 
       {/* Hero */}
       <section className="flex flex-col items-center text-center px-6 pt-14 pb-12">
-        <div className="text-6xl mb-6">🧾</div>
+        <div className="mb-6"><LogoMark size={72} /></div>
         <h1 className="text-3xl font-bold leading-tight mb-4" style={{ color: 'var(--text)' }}>
           Seus recibos organizados<br />com inteligência artificial.
         </h1>
