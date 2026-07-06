@@ -5,6 +5,10 @@ import { creditsApi } from '@/api/credits'
 import { expensesApi } from '@/api/expenses'
 import { receiptsApi } from '@/api/receipts'
 import { ExpenseCard } from '@/components/ExpenseCard'
+import { ExpenseGrid } from '@/components/ExpenseGrid'
+import { ExpenseTable } from '@/components/ExpenseTable'
+import { useIsDesktop } from '@/hooks/useIsDesktop'
+import { useLayoutStore } from '@/store/layoutStore'
 import { SkeletonCard } from '@/components/SkeletonCard'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useAuth } from '@/hooks/useAuth'
@@ -13,6 +17,9 @@ import { formatBRL } from '@/lib/utils'
 export function DashboardPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const isDesktop = useIsDesktop()
+  const layoutPref = useLayoutStore((s) => s.layout)
+  const layout = isDesktop ? layoutPref : 'list'
 
   const { data: expenses, isLoading: expLoading } = useQuery({
     queryKey: ['expenses'],
@@ -71,7 +78,7 @@ export function DashboardPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <div className="max-w-lg md:max-w-2xl mx-auto px-4 pt-6 pb-2">
+      <div className={`max-w-lg mx-auto px-4 pt-6 pb-2 ${layout === 'list' ? 'md:max-w-2xl' : 'md:max-w-5xl'}`}>
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
@@ -223,11 +230,20 @@ export function DashboardPage() {
           </div>
         ))}
 
-        {/* Expense list */}
-        {expLoading
-          ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
-          : expenses?.map((e) => <ExpenseCard key={e.id} expense={e} isDuplicate={duplicateIds.has(e.id)} />)
-        }
+        {/* Expense list — presentation follows the selected desktop layout */}
+        {expLoading ? (
+          Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
+        ) : layout === 'table' ? (
+          <div className="mt-4">
+            <ExpenseTable expenses={expenses ?? []} duplicateIds={duplicateIds} />
+          </div>
+        ) : layout === 'grid' ? (
+          <div className="mt-4">
+            <ExpenseGrid expenses={expenses ?? []} duplicateIds={duplicateIds} />
+          </div>
+        ) : (
+          expenses?.map((e) => <ExpenseCard key={e.id} expense={e} isDuplicate={duplicateIds.has(e.id)} />)
+        )}
 
         {expenses?.length === 0 && !expLoading && (
           <p className="text-center py-12 text-sm" style={{ color: 'var(--text-muted)' }}>

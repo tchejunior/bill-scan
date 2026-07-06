@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { reportsApi } from '@/api/reports'
 import { formatBRL } from '@/lib/utils'
+import { useIsDesktop } from '@/hooks/useIsDesktop'
+import { useLayoutStore } from '@/store/layoutStore'
 
 const PAYMENT_LABELS: Record<string, string> = {
   cash: 'Dinheiro',
@@ -33,6 +35,9 @@ function getDateRange(months: number): { from: string; to: string } {
 }
 
 export function ReportsPage() {
+  const isDesktop = useIsDesktop()
+  const layoutPref = useLayoutStore((s) => s.layout)
+  const layout = isDesktop ? layoutPref : 'list'
   const [periodMonths, setPeriodMonths] = useState(1)
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
@@ -50,7 +55,7 @@ export function ReportsPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <div className="max-w-lg md:max-w-2xl mx-auto px-4 pt-6 pb-24 md:pb-8">
+      <div className={`max-w-lg mx-auto px-4 pt-6 pb-24 md:pb-8 ${layout === 'list' ? 'md:max-w-2xl' : 'md:max-w-5xl'}`}>
         <h1 className="text-lg font-bold mb-6" style={{ color: 'var(--text)' }}>Relatório</h1>
 
         {/* Period chips */}
@@ -107,76 +112,112 @@ export function ReportsPage() {
           </div>
         )}
 
-        {summary && summary.categories.length > 0 && (
-          <>
-            <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Por categoria</p>
-
-            <ResponsiveContainer width="100%" height={summary.categories.length * 44}>
-              <BarChart
-                data={summary.categories}
-                layout="vertical"
-                margin={{ top: 0, right: 60, left: 80, bottom: 0 }}
-              >
-                <XAxis type="number" hide />
-                <YAxis
-                  type="category"
-                  dataKey="category"
-                  tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
-                  width={80}
-                />
-                <Tooltip
-                  formatter={(v) => formatBRL(v as number)}
-                  contentStyle={{
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 8,
-                    color: 'var(--text)',
-                  }}
-                />
-                <Bar dataKey="total" radius={[0, 4, 4, 0]}>
-                  {summary.categories.map((_, idx) => (
-                    <Cell key={idx} fill={BAR_COLORS[idx % BAR_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-
-            {/* Payment methods */}
-            {summary.payment_methods.length > 0 && (
-              <div className="mt-6 mb-4">
-                <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Por forma de pagamento</p>
-                {summary.payment_methods.map((pm) => (
-                  <div
-                    key={pm.method}
-                    className="flex justify-between py-2 text-sm border-b"
-                    style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
-                  >
-                    <span style={{ color: 'var(--text-muted)' }}>{PAYMENT_LABELS[pm.method] ?? pm.method}</span>
-                    <span className="font-semibold">{formatBRL(pm.total)}</span>
-                  </div>
-                ))}
+        {summary && summary.categories.length > 0 && (() => {
+          const categoriesSection = layout === 'table' ? (
+            <div>
+              <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Por categoria</p>
+              <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                <table className="w-full text-sm" style={{ color: 'var(--text)' }}>
+                  <tbody>
+                    {summary.categories.map((c, idx) => (
+                      <tr key={c.category} className={idx > 0 ? 'border-t' : ''} style={{ borderColor: 'var(--border)' }}>
+                        <td className="px-4 py-2.5">
+                          <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ background: BAR_COLORS[idx % BAR_COLORS.length] }} />
+                          {c.category}
+                        </td>
+                        <td className="px-4 py-2.5 text-right" style={{ color: 'var(--text-muted)' }}>
+                          {((c.total / summary.grand_total) * 100).toFixed(0)}%
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{formatBRL(c.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
-
-            {/* Grand total */}
-            <div className="flex justify-between py-3 border-t" style={{ borderColor: 'var(--border)' }}>
-              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Total</span>
-              <span className="text-base font-bold" style={{ color: 'var(--text)' }}>
-                {formatBRL(summary.grand_total)}
-              </span>
             </div>
+          ) : (
+            <div>
+              <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Por categoria</p>
+              <ResponsiveContainer width="100%" height={summary.categories.length * 44}>
+                <BarChart
+                  data={summary.categories}
+                  layout="vertical"
+                  margin={{ top: 0, right: 60, left: 80, bottom: 0 }}
+                >
+                  <XAxis type="number" hide />
+                  <YAxis
+                    type="category"
+                    dataKey="category"
+                    tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+                    width={80}
+                  />
+                  <Tooltip
+                    formatter={(v) => formatBRL(v as number)}
+                    contentStyle={{
+                      background: 'var(--bg-card)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 8,
+                      color: 'var(--text)',
+                    }}
+                  />
+                  <Bar dataKey="total" radius={[0, 4, 4, 0]}>
+                    {summary.categories.map((_, idx) => (
+                      <Cell key={idx} fill={BAR_COLORS[idx % BAR_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )
 
-            {/* PDF export */}
-            <a
-              href={reportsApi.pdfUrl(from, to)}
-              download
-              className="block w-full mt-4 py-3 rounded-xl text-center text-sm font-bold text-white"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-hover))' }}
-            >
-              ⬇ Exportar PDF
-            </a>
-          </>
-        )}
+          const detailsSection = (
+            <div>
+              {summary.payment_methods.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Por forma de pagamento</p>
+                  {summary.payment_methods.map((pm) => (
+                    <div
+                      key={pm.method}
+                      className="flex justify-between py-2 text-sm border-b"
+                      style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+                    >
+                      <span style={{ color: 'var(--text-muted)' }}>{PAYMENT_LABELS[pm.method] ?? pm.method}</span>
+                      <span className="font-semibold">{formatBRL(pm.total)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-between py-3 border-t" style={{ borderColor: 'var(--border)' }}>
+                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Total</span>
+                <span className="text-base font-bold" style={{ color: 'var(--text)' }}>
+                  {formatBRL(summary.grand_total)}
+                </span>
+              </div>
+
+              <a
+                href={reportsApi.pdfUrl(from, to)}
+                download
+                className="block w-full mt-4 py-3 rounded-xl text-center text-sm font-bold text-white"
+                style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-hover))' }}
+              >
+                ⬇ Exportar PDF
+              </a>
+            </div>
+          )
+
+          return layout === 'grid' ? (
+            <div className="grid lg:grid-cols-2 gap-8 items-start">
+              {categoriesSection}
+              {detailsSection}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {categoriesSection}
+              {detailsSection}
+            </div>
+          )
+        })()}
 
         {summary && summary.categories.length === 0 && !isLoading && (
           <p className="text-center py-12 text-sm" style={{ color: 'var(--text-muted)' }}>

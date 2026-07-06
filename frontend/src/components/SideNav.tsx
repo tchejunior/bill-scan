@@ -1,5 +1,13 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
+import { useLayoutStore, type LayoutPref } from '@/store/layoutStore'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+const LAYOUT_OPTIONS: { value: LayoutPref; label: string }[] = [
+  { value: 'list', label: '☰ Lista' },
+  { value: 'table', label: '▦ Tabela' },
+  { value: 'grid', label: '⊞ Grade' },
+]
 
 const tabs = [
   { to: '/dashboard', icon: '🏠', label: 'Início' },
@@ -10,6 +18,8 @@ const tabs = [
 export function SideNav() {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  const layout = useLayoutStore((s) => s.layout)
+  const setLayout = useLayoutStore((s) => s.setLayout)
 
   return (
     <nav
@@ -36,6 +46,22 @@ export function SideNav() {
             <span>{tab.label}</span>
           </NavLink>
         ))}
+      </div>
+
+      <div className="px-3 pb-2">
+        <span className="block text-xs font-medium px-3 mb-1" style={{ color: 'var(--text-muted)' }}>
+          Layout
+        </span>
+        <Select value={layout} onValueChange={(v) => setLayout(v as LayoutPref)}>
+          <SelectTrigger className="w-full text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {LAYOUT_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="px-3 py-4 relative">
