@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { creditsApi } from '@/api/credits'
@@ -69,7 +69,19 @@ export function DashboardPage() {
     return dupes
   }, [expenses])
 
-  const totalCents = expenses?.reduce((sum, e) => sum + e.amount, 0) ?? 0
+  // Header summary covers the last 30 days only; the list below shows everything
+  const cutoff = new Date(Date.now() - 30 * 86400000).toLocaleDateString('en-CA')
+  const last30 = useMemo(
+    () => expenses?.filter((e) => e.date >= cutoff) ?? [],
+    [expenses, cutoff]
+  )
+  const totalCents = last30.reduce((sum, e) => sum + e.amount, 0)
+
+  const PAGE_SIZE = 20
+  const [page, setPage] = useState(0)
+  const pageCount = Math.max(1, Math.ceil((expenses?.length ?? 0) / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount - 1)
+  const pagedExpenses = expenses?.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE) ?? []
 
   const now = new Date()
   const monthLabel = now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
@@ -97,11 +109,11 @@ export function DashboardPage() {
           style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-hover))' }}
         >
           <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'rgba(255,255,255,0.7)' }}>
-            Total do mês
+            Últimos 30 dias
           </div>
           <div className="text-3xl font-bold text-white">{formatBRL(totalCents)}</div>
           <div className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>
-            {expenses?.length ?? 0} despesas
+            {last30.length} despesas
           </div>
         </div>
 
@@ -235,14 +247,38 @@ export function DashboardPage() {
           Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
         ) : layout === 'table' ? (
           <div className="mt-4">
-            <ExpenseTable expenses={expenses ?? []} duplicateIds={duplicateIds} />
+            <ExpenseTable expenses={pagedExpenses} duplicateIds={duplicateIds} />
           </div>
         ) : layout === 'grid' ? (
           <div className="mt-4">
-            <ExpenseGrid expenses={expenses ?? []} duplicateIds={duplicateIds} />
+            <ExpenseGrid expenses={pagedExpenses} duplicateIds={duplicateIds} />
           </div>
         ) : (
-          expenses?.map((e) => <ExpenseCard key={e.id} expense={e} isDuplicate={duplicateIds.has(e.id)} />)
+          pagedExpenses.map((e) => <ExpenseCard key={e.id} expense={e} isDuplicate={duplicateIds.has(e.id)} />)
+        )}
+
+        {pageCount > 1 && !expLoading && (
+          <div className="flex items-center justify-center gap-4 mt-4 pb-4">
+            <button
+              onClick={() => setPage(currentPage - 1)}
+              disabled={currentPage === 0}
+              className="text-xs font-semibold px-3 py-1.5 rounded-full disabled:opacity-40"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text)' }}
+            >
+              Anterior
+            </button>
+            <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
+              {currentPage + 1} / {pageCount}
+            </span>
+            <button
+              onClick={() => setPage(currentPage + 1)}
+              disabled={currentPage >= pageCount - 1}
+              className="text-xs font-semibold px-3 py-1.5 rounded-full disabled:opacity-40"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text)' }}
+            >
+              Próxima
+            </button>
+          </div>
         )}
 
         {expenses?.length === 0 && !expLoading && (
