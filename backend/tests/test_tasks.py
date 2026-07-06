@@ -53,6 +53,32 @@ def test_process_receipt_creates_expense(db):
     assert float(expense.total_amount) == 99.99
 
 
+def test_process_receipt_partial_when_key_fields_missing(db):
+    user = _make_user(db)
+    receipt = _make_receipt(db, user.id)
+
+    ai_data = {
+        "vendor": None, "date": None, "total_amount": 98.88,
+        "subtotal": None, "tax_amount": None, "payment_method": None,
+        "suggested_category": "Outro", "currency": "BRL", "line_items": [],
+    }
+
+    with patch("app.worker.tasks.extract_receipt_data", return_value=ai_data), \
+         patch("app.worker.tasks.storage.load", return_value=b"fake"), \
+         patch("app.worker.tasks.redis.from_url") as mock_redis:
+        mock_redis.return_value.publish = MagicMock()
+        from app.worker.tasks import _run_process_receipt
+        _run_process_receipt(str(receipt.id), db)
+
+    db.refresh(receipt)
+    assert receipt.status == ReceiptStatus.partial
+
+    from app.models.expense import Expense
+    expense = db.query(Expense).filter(Expense.receipt_id == receipt.id).first()
+    assert expense is not None
+    assert float(expense.total_amount) == 98.88
+
+
 def test_process_receipt_sets_failed_on_ai_error(db):
     user = _make_user(db)
     receipt = _make_receipt(db, user.id)

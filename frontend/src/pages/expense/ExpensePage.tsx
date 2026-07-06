@@ -144,6 +144,9 @@ export function ExpensePage() {
     enabled: !!id,
   })
 
+  const { data: receipts } = useQuery({ queryKey: ['receipts'], queryFn: receiptsApi.list })
+  const receipt = receipts?.find((r) => r.id === expense?.receipt_id)
+
   const { data: allExpenses } = useQuery({ queryKey: ['expenses'], queryFn: expensesApi.list })
   const merchants = useMemo(
     () => [...new Set(allExpenses?.map((e) => e.merchant).filter(Boolean) as string[])].sort(),
@@ -205,8 +208,7 @@ export function ExpensePage() {
     })
   }
 
-  // A receipt is "processing" if it has a receipt_id but merchant is not yet populated
-  const processing = !!expense?.receipt_id && !expense.merchant
+  const processing = receipt?.status === 'pending' || receipt?.status === 'processing'
   const hasImage = !!expense?.receipt_id && !processing
   const splitView = isDesktop && hasImage
 

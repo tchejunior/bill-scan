@@ -61,7 +61,13 @@ def _run_process_receipt(receipt_id: str, db: Session) -> None:
     expense.payment_method = _PM_MAP.get(data.get("payment_method") or "", PaymentMethod.other)
     expense.line_items = line_items or None
 
-    is_partial = bool(data.get("_parse_error"))
+    # Missing key fields need manual review even when the AI response parsed cleanly
+    is_partial = (
+        bool(data.get("_parse_error"))
+        or not data.get("vendor")
+        or not data.get("date")
+        or not data.get("total_amount")
+    )
     receipt.status = ReceiptStatus.partial if is_partial else ReceiptStatus.processed
     receipt.processed_at = datetime.now(timezone.utc)
     receipt.raw_ai_output = data
