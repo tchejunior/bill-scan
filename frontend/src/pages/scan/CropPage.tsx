@@ -27,7 +27,7 @@ export function CropPage() {
   const detectedCropRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null)
 
   const [uploading, setUploading] = useState(false)
-  const [imgSrc, setImgSrc] = useState<string | null>(null)
+  const [imgSrc] = useState(() => (blob ? URL.createObjectURL(blob) : null))
   const [imageLoaded, setImageLoaded] = useState(false)
   const [detecting, setDetecting] = useState(true)
 
@@ -37,14 +37,14 @@ export function CropPage() {
     cropperRef.current.setData(detectedCropRef.current)
   }, [])
 
-  // Load blob → object URL
   useEffect(() => {
-    if (!blob) { navigate('/scan'); return }
-    setImageLoaded(false)
-    const url = URL.createObjectURL(blob)
-    setImgSrc(url)
-    return () => URL.revokeObjectURL(url)
+    if (!blob) navigate('/scan')
   }, [blob, navigate])
+
+  useEffect(() => {
+    if (!imgSrc) return
+    return () => URL.revokeObjectURL(imgSrc)
+  }, [imgSrc])
 
   // Init Cropper.js once image is in the DOM
   useEffect(() => {

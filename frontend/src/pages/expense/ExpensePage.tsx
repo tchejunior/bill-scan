@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo, type FormEvent } from 'react'
+import { useState, useMemo, type FormEvent } from 'react'
 import type { LineItem } from '@/api/expenses'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { expensesApi, type Expense } from '@/api/expenses'
-import { receiptsApi } from '@/api/receipts'
+import { receiptsApi, type Receipt } from '@/api/receipts'
 import { useScanStore } from '@/store/scanStore'
 import { useLayoutStore } from '@/store/layoutStore'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
@@ -131,23 +131,17 @@ const PAYMENT_METHODS = [
   { value: 'other', label: 'Outro' },
 ]
 
-export function ExpensePage() {
-  const { id } = useParams<{ id: string }>()
+interface ExpenseEditorProps {
+  expense: Expense
+  receipt?: Receipt
+  allExpenses?: Expense[]
+  isDesktop: boolean
+  layout: string
+}
+
+function ExpenseEditor({ expense, receipt, allExpenses, isDesktop, layout }: ExpenseEditorProps) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const isDesktop = useIsDesktop(1024)
-  const layout = useLayoutStore((s) => s.layout)
-
-  const { data: expense, isLoading } = useQuery<Expense>({
-    queryKey: ['expense', id],
-    queryFn: () => expensesApi.get(id!),
-    enabled: !!id,
-  })
-
-  const { data: receipts } = useQuery({ queryKey: ['receipts'], queryFn: receiptsApi.list })
-  const receipt = receipts?.find((r) => r.id === expense?.receipt_id)
-
-  const { data: allExpenses } = useQuery({ queryKey: ['expenses'], queryFn: expensesApi.list })
   const merchants = useMemo(
     () => [...new Set(allExpenses?.map((e) => e.merchant).filter(Boolean) as string[])].sort(),
     [allExpenses],
@@ -164,31 +158,19 @@ export function ExpensePage() {
       }, {})
   }, [allExpenses])
 
-  const [merchant, setMerchant] = useState('')
-  const [amount, setAmount] = useState('')
-  const [date, setDate] = useState('')
-  const [category, setCategory] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState('')
-  const [notes, setNotes] = useState('')
+  const [merchant, setMerchant] = useState(expense.merchant ?? '')
+  const [amount, setAmount] = useState((expense.amount / 100).toFixed(2))
+  const [date, setDate] = useState(expense.date?.slice(0, 10) ?? '')
+  const [category, setCategory] = useState(expense.category ?? '')
+  const [paymentMethod, setPaymentMethod] = useState(expense.payment_method ?? '')
+  const [notes, setNotes] = useState(expense.notes ?? '')
   const [error, setError] = useState('')
-  const [initialized, setInitialized] = useState(false)
-
-  useEffect(() => {
-    if (!expense) return
-    setMerchant(expense.merchant ?? '')
-    setAmount((expense.amount / 100).toFixed(2))
-    setDate(expense.date?.slice(0, 10) ?? '')
-    setCategory(expense.category ?? '')
-    setPaymentMethod(expense.payment_method ?? '')
-    setNotes(expense.notes ?? '')
-    setInitialized(true)
-  }, [expense])
 
   const mutation = useMutation({
-    mutationFn: (body: Partial<Omit<Expense, 'id'>>) => expensesApi.update(id!, body),
+    mutationFn: (body: Partial<Omit<Expense, 'id'>>) => expensesApi.update(expense.id, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
-      queryClient.invalidateQueries({ queryKey: ['expense', id] })
+      queryClient.invalidateQueries({ queryKey: ['expense', expense.id] })
       navigate('/dashboard')
     },
     onError: (err) => setError(err instanceof Error ? err.message : 'Erro ao salvar'),
@@ -209,16 +191,16 @@ export function ExpensePage() {
   }
 
   const processing = receipt?.status === 'pending' || receipt?.status === 'processing'
-  const hasImage = !!expense?.receipt_id && !processing
+  const hasImage = !!expense.receipt_id && !processing
   const splitView = isDesktop && hasImage
 
   const formContent = (
     <form onSubmit={handleSubmit} className="space-y-4">
       {hasImage && !splitView && (
         <ReceiptImage
-          receiptId={expense!.receipt_id!}
-          expenseId={expense!.id}
-          onRemoved={() => queryClient.invalidateQueries({ queryKey: ['expense', id] })}
+          receiptId={expense.receipt_id!}
+          expenseId={expense.id}
+          onRemoved={() => queryClient.invalidateQueries({ queryKey: ['expense', expense.id] })}
         />
       )}
 
@@ -234,7 +216,7 @@ export function ExpensePage() {
               onChange={(e) => {
                 const val = e.target.value
                 setMerchant(val)
-                if (initialized && merchantCategoryMap[val]) {
+                if (merchantCategoryMap[val]) {
                   setCategory(merchantCategoryMap[val])
                 }
               }}
@@ -272,34 +254,26 @@ export function ExpensePage() {
 
       <div className="space-y-1">
         <Label>Categoria</Label>
-        {!initialized ? (
-          <div className="h-10 rounded animate-pulse" style={{ background: 'var(--border)' }} />
-        ) : (
-          <Select value={category} onValueChange={setCategory} disabled={processing}>
-            <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-            <SelectContent>
-              {CATEGORIES.map((c) => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        <Select value={category} onValueChange={setCategory} disabled={processing}>
+          <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+          <SelectContent>
+            {CATEGORIES.map((c) => (
+              <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-1">
         <Label>Pagamento</Label>
-        {!initialized ? (
-          <div className="h-10 rounded animate-pulse" style={{ background: 'var(--border)' }} />
-        ) : (
-          <Select value={paymentMethod} onValueChange={setPaymentMethod} disabled={processing}>
-            <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-            <SelectContent>
-              {PAYMENT_METHODS.map((m) => (
-                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        <Select value={paymentMethod} onValueChange={setPaymentMethod} disabled={processing}>
+          <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+          <SelectContent>
+            {PAYMENT_METHODS.map((m) => (
+              <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-1">
@@ -312,7 +286,7 @@ export function ExpensePage() {
         />
       </div>
 
-      {expense?.line_items && expense.line_items.length > 0 && (
+      {expense.line_items && expense.line_items.length > 0 && (
         <div className="space-y-1">
           <Label>Itens do recibo</Label>
           <div
@@ -355,7 +329,7 @@ export function ExpensePage() {
         type="button"
         onClick={() => {
           if (!confirm('Excluir esta despesa?')) return
-          expensesApi.delete(id!).then(() => {
+          expensesApi.delete(expense.id).then(() => {
             queryClient.invalidateQueries({ queryKey: ['expenses'] })
             navigate('/dashboard')
           })
@@ -374,7 +348,7 @@ export function ExpensePage() {
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => navigate(-1)} style={{ color: 'var(--text-muted)' }}>←</button>
           <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Despesa</h1>
-          {expense?.receipt_id && !processing && (
+          {expense.receipt_id && !processing && (
             <span
               className="text-xs font-semibold px-2 py-0.5 rounded"
               style={{ background: 'rgba(52,199,89,0.15)', color: '#34c759' }}
@@ -392,9 +366,7 @@ export function ExpensePage() {
           )}
         </div>
 
-        {isLoading ? (
-          Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
-        ) : splitView ? (
+        {splitView ? (
           <div className="flex gap-6 items-start">
             <div
               className="sticky top-6 flex-shrink-0 space-y-3"
@@ -402,14 +374,14 @@ export function ExpensePage() {
             >
               <div style={{ height: 'calc(100vh - 160px)' }}>
                 <ReceiptViewer
-                  src={`/api/receipts/${expense!.receipt_id}/image`}
+                  src={`/api/receipts/${expense.receipt_id}/image`}
                   className="w-full h-full rounded-xl"
                 />
               </div>
               <ReceiptActions
-                receiptId={expense!.receipt_id!}
-                expenseId={expense!.id}
-                onRemoved={() => queryClient.invalidateQueries({ queryKey: ['expense', id] })}
+                receiptId={expense.receipt_id!}
+                expenseId={expense.id}
+                onRemoved={() => queryClient.invalidateQueries({ queryKey: ['expense', expense.id] })}
               />
             </div>
             <div className="flex-1 min-w-0">{formContent}</div>
@@ -419,5 +391,59 @@ export function ExpensePage() {
         )}
       </div>
     </div>
+  )
+}
+
+export function ExpensePage() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const isDesktop = useIsDesktop(1024)
+  const layout = useLayoutStore((s) => s.layout)
+
+  const { data: expense, isLoading } = useQuery<Expense>({
+    queryKey: ['expense', id],
+    queryFn: () => expensesApi.get(id!),
+    enabled: !!id,
+  })
+
+  const { data: receipts } = useQuery({ queryKey: ['receipts'], queryFn: receiptsApi.list })
+  const { data: allExpenses } = useQuery({ queryKey: ['expenses'], queryFn: expensesApi.list })
+  const receipt = receipts?.find((r) => r.id === expense?.receipt_id)
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+        <div className="mx-auto px-4 pt-6 pb-24 max-w-lg">
+          {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      </div>
+    )
+  }
+
+  if (!expense) {
+    return (
+      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+        <div className="mx-auto px-4 pt-6 pb-24 max-w-lg">
+          <div className="flex items-center gap-3 mb-6">
+            <button onClick={() => navigate(-1)} style={{ color: 'var(--text-muted)' }}>←</button>
+            <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Despesa</h1>
+          </div>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            Despesa não encontrada.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <ExpenseEditor
+      key={expense.id}
+      expense={expense}
+      receipt={receipt}
+      allExpenses={allExpenses}
+      isDesktop={isDesktop}
+      layout={layout}
+    />
   )
 }

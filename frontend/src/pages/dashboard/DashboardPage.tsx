@@ -18,6 +18,15 @@ export function DashboardPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const isDesktop = useIsDesktop()
+  const [{ cutoff, monthLabel }] = useState(() => {
+    const now = new Date()
+    const cutoffDate = new Date(now)
+    cutoffDate.setDate(cutoffDate.getDate() - 30)
+    return {
+      cutoff: cutoffDate.toLocaleDateString('en-CA'),
+      monthLabel: now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+    }
+  })
   const layoutPref = useLayoutStore((s) => s.layout)
   const layout = isDesktop ? layoutPref : 'list'
 
@@ -70,7 +79,6 @@ export function DashboardPage() {
   }, [expenses])
 
   // Header summary covers the last 30 days only; the list below shows everything
-  const cutoff = new Date(Date.now() - 30 * 86400000).toLocaleDateString('en-CA')
   const last30 = useMemo(
     () => expenses?.filter((e) => e.date >= cutoff) ?? [],
     [expenses, cutoff]
@@ -82,9 +90,6 @@ export function DashboardPage() {
   const pageCount = Math.max(1, Math.ceil((expenses?.length ?? 0) / PAGE_SIZE))
   const currentPage = Math.min(page, pageCount - 1)
   const pagedExpenses = expenses?.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE) ?? []
-
-  const now = new Date()
-  const monthLabel = now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 
   const firstName = user?.display_name || user?.email.split('@')[0] || ''
 

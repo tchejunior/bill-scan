@@ -1,45 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-
-export interface ViewTransform {
-  scale: number
-  tx: number
-  ty: number
-}
-
-/**
- * Zoom by `factor` keeping the container point (cx, cy) visually fixed.
- * Exported for unit testing.
- */
-export function zoomAt(
-  t: ViewTransform,
-  cx: number,
-  cy: number,
-  factor: number,
-  minScale: number,
-  maxScale: number,
-): ViewTransform {
-  const scale = Math.min(Math.max(t.scale * factor, minScale), maxScale)
-  const ratio = scale / t.scale
-  return {
-    scale,
-    tx: cx - (cx - t.tx) * ratio,
-    ty: cy - (cy - t.ty) * ratio,
-  }
-}
-
-export function fitTransform(
-  containerW: number,
-  containerH: number,
-  imageW: number,
-  imageH: number,
-): ViewTransform {
-  const scale = Math.min(containerW / imageW, containerH / imageH)
-  return {
-    scale,
-    tx: (containerW - imageW * scale) / 2,
-    ty: (containerH - imageH * scale) / 2,
-  }
-}
+import {
+  fitTransform,
+  zoomAt,
+  type ViewTransform,
+} from '@/lib/receiptViewerTransform'
 
 const MAX_SCALE = 8
 
@@ -47,8 +11,6 @@ export function ReceiptViewer({ src, className }: { src: string; className?: str
   const containerRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
   const [transform, setTransform] = useState<ViewTransform>({ scale: 1, tx: 0, ty: 0 })
-  const transformRef = useRef(transform)
-  transformRef.current = transform
   const fitRef = useRef<ViewTransform>({ scale: 1, tx: 0, ty: 0 })
   const interactedRef = useRef(false)
   const pointers = useRef(new Map<number, { x: number; y: number }>())
@@ -169,23 +131,36 @@ export function ReceiptViewer({ src, className }: { src: string; className?: str
         }}
       />
       <div className="absolute bottom-3 right-3 flex gap-1.5">
-        {[
-          { label: '−', action: () => buttonZoom(0.8), aria: 'Diminuir zoom' },
-          { label: '+', action: () => buttonZoom(1.25), aria: 'Aumentar zoom' },
-          { label: '⤢', action: reset, aria: 'Ajustar à tela' },
-        ].map((b) => (
-          <button
-            key={b.aria}
-            type="button"
-            aria-label={b.aria}
-            onClick={b.action}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg font-bold"
-            style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
-          >
-            {b.label}
-          </button>
-        ))}
+        <button
+          type="button"
+          aria-label="Diminuir zoom"
+          onClick={() => buttonZoom(0.8)}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg font-bold"
+          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+        >
+          -
+        </button>
+        <button
+          type="button"
+          aria-label="Aumentar zoom"
+          onClick={() => buttonZoom(1.25)}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg font-bold"
+          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+        >
+          +
+        </button>
+        <button
+          type="button"
+          aria-label="Ajustar à tela"
+          onClick={reset}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="w-9 h-9 rounded-full flex items-center justify-center text-white text-lg font-bold"
+          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+        >
+          ⤢
+        </button>
       </div>
     </div>
   )

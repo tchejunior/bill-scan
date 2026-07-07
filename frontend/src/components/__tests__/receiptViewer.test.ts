@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { zoomAt, fitTransform } from '../ReceiptViewer'
+import { zoomAt, fitTransform } from '../../lib/receiptViewerTransform'
 
 describe('fitTransform', () => {
   it('fits a tall image into a container and centers it horizontally', () => {

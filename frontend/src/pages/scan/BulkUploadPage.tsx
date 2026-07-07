@@ -89,6 +89,7 @@ export function BulkUploadPage() {
   const imgRef = useRef<HTMLImageElement>(null)
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
+  const detectingIdsRef = useRef(new Set<string>())
 
   // ─── SELECT ──────────────────────────────────────────────────────────────
 
@@ -114,13 +115,43 @@ export function BulkUploadPage() {
     })
   }
 
+  function startDetection(index: number, sourceEntries = entries) {
+    const entry = sourceEntries[index]
+    if (!entry || entry.detecting || entry.detectedCrop || detectingIdsRef.current.has(entry.id)) return
+
+    detectingIdsRef.current.add(entry.id)
+    setEntries((prev) => prev.map((e) => e.id === entry.id ? { ...e, detecting: true } : e))
+    receiptsApi.detectEdges(entry.file)
+      .then(({ points }) => {
+        const crop = points && points.length === 4 ? pointsToRect(points) : null
+        setEntries((prev) => prev.map((e) =>
+          e.id === entry.id ? { ...e, detecting: false, detectedCrop: crop } : e,
+        ))
+      })
+      .catch(() => {
+        setEntries((prev) => prev.map((e) =>
+          e.id === entry.id ? { ...e, detecting: false } : e,
+        ))
+      })
+      .finally(() => {
+        detectingIdsRef.current.delete(entry.id)
+      })
+  }
+
   function enterReview() {
     if (entries.length === 0) return
-    setEntries((prev) => prev.map((e) => ({ ...e, detecting: false, detectedCrop: null, savedCrop: null })))
+    const reviewEntries = entries.map((e) => ({
+      ...e,
+      detecting: false,
+      detectedCrop: null,
+      savedCrop: null,
+    }))
+    setEntries(reviewEntries)
     setPhase('review')
     setCurrentIndex(0)
     setImgLoaded(false)
     cropAdjustedRef.current = false
+    startDetection(0, reviewEntries)
   }
 
   // ─── REVIEW ──────────────────────────────────────────────────────────────
@@ -139,25 +170,19 @@ export function BulkUploadPage() {
     cropAdjustedRef.current = false
     setImgLoaded(false)
     setCurrentIndex(newIndex)
+    startDetection(newIndex)
   }
 
-  // Init / destroy Cropper.js whenever the current image loads; also fire edge detection for this image
+  // Init / destroy Cropper.js whenever the current image loads.
   useEffect(() => {
     if (phase !== 'review' || !imgLoaded || !imgRef.current) return
     const entry = entries[currentIndex]
     if (!entry) return
     const initCrop = entry.savedCrop ?? entry.detectedCrop ?? null
-    const idx = currentIndex
-    const file = entry.file
-
-    // Shared between ready() and detection .then() — whichever fires second applies the crop.
-    // Using a closure-local variable avoids cross-image races: each effect invocation owns its own.
-    let detectionResult: CropRect | null = null
 
     function applyIfReady() {
-      const crop = initCrop ?? detectionResult
-      if (!crop || cropAdjustedRef.current || !cropperReadyRef.current || !cropperRef.current) return
-      cropperRef.current.setData(crop)
+      if (!initCrop || cropAdjustedRef.current || !cropperReadyRef.current || !cropperRef.current) return
+      cropperRef.current.setData(initCrop)
       cropAdjustedRef.current = true
     }
 
@@ -174,21 +199,6 @@ export function BulkUploadPage() {
       },
     })
     cropperRef.current = cropper
-
-    // Fire detection for this image if not yet attempted
-    if (!entry.detecting && !entry.detectedCrop) {
-      setEntries((prev) => prev.map((e, i) => i === idx ? { ...e, detecting: true } : e))
-      receiptsApi.detectEdges(file)
-        .then(({ points }) => {
-          const crop = points && points.length === 4 ? pointsToRect(points) : null
-          detectionResult = crop
-          setEntries((prev) => prev.map((e, i) => i === idx ? { ...e, detecting: false, detectedCrop: crop } : e))
-          applyIfReady()
-        })
-        .catch(() => {
-          setEntries((prev) => prev.map((e, i) => i === idx ? { ...e, detecting: false } : e))
-        })
-    }
 
     return () => {
       cropper.destroy()
@@ -219,7 +229,11 @@ export function BulkUploadPage() {
     const dx = e.changedTouches[0].clientX - touchStartX.current
     const dy = e.changedTouches[0].clientY - touchStartY.current
     if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      dx < 0 ? goTo(currentIndex + 1) : goTo(currentIndex - 1)
+      if (dx < 0) {
+        goTo(currentIndex + 1)
+      } else {
+        goTo(currentIndex - 1)
+      }
     }
   }
 
