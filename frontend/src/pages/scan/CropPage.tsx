@@ -6,6 +6,11 @@ import { useScanStore } from '@/store/scanStore'
 import { receiptsApi } from '@/api/receipts'
 import { expensesApi } from '@/api/expenses'
 import { useQueryClient } from '@tanstack/react-query'
+import {
+  RECEIPT_CROP_CANVAS_OPTIONS,
+  RECEIPT_UPLOAD_JPEG_QUALITY,
+  RECEIPT_UPLOAD_MIME_TYPE,
+} from '@/lib/receiptImage'
 
 export function CropPage() {
   const navigate = useNavigate()
@@ -97,7 +102,7 @@ export function CropPage() {
     setUploading(true)
     try {
       await new Promise<void>((resolve, reject) => {
-        cropperRef.current!.getCroppedCanvas({ maxWidth: 1920, maxHeight: 1920 })
+        cropperRef.current!.getCroppedCanvas(RECEIPT_CROP_CANVAS_OPTIONS)
           .toBlob(async (croppedBlob) => {
             if (!croppedBlob || croppedBlob.size === 0) { reject(new Error('Failed to crop image')); return }
             try {
@@ -118,7 +123,7 @@ export function CropPage() {
               }
               resolve()
             } catch (err) { reject(err) }
-          }, 'image/jpeg', 0.9)
+          }, RECEIPT_UPLOAD_MIME_TYPE, RECEIPT_UPLOAD_JPEG_QUALITY)
       })
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao enviar recibo')

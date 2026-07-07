@@ -1,4 +1,9 @@
 import { useRef, useState, useCallback } from 'react'
+import {
+  RECEIPT_CAMERA_VIDEO_CONSTRAINTS,
+  RECEIPT_UPLOAD_JPEG_QUALITY,
+  RECEIPT_UPLOAD_MIME_TYPE,
+} from '@/lib/receiptImage'
 
 export function useCamera(videoRef: React.RefObject<HTMLVideoElement | null>) {
   const streamRef = useRef<MediaStream | null>(null)
@@ -8,7 +13,7 @@ export function useCamera(videoRef: React.RefObject<HTMLVideoElement | null>) {
   const start = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1920 } },
+        video: RECEIPT_CAMERA_VIDEO_CONSTRAINTS,
       })
       streamRef.current = stream
       if (videoRef.current) {
@@ -33,7 +38,7 @@ export function useCamera(videoRef: React.RefObject<HTMLVideoElement | null>) {
       canvas.width = video.videoWidth
       canvas.height = video.videoHeight
       canvas.getContext('2d')?.drawImage(video, 0, 0)
-      canvas.toBlob(resolve, 'image/jpeg', 0.9)
+      canvas.toBlob(resolve, RECEIPT_UPLOAD_MIME_TYPE, RECEIPT_UPLOAD_JPEG_QUALITY)
     })
   }, [videoRef])
 

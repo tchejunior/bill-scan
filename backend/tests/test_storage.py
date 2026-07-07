@@ -43,7 +43,7 @@ def test_process_image_resizes_large_image():
     jpeg = make_jpeg_bytes(3000, 4000)
     result = process_image(jpeg)
     img = Image.open(io.BytesIO(result))
-    assert max(img.size) <= 1920
+    assert img.size == (1920, 2560)
 
 
 def test_process_image_preserves_small_image():
