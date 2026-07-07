@@ -108,11 +108,13 @@ export function CropPage() {
             try {
               const receipt = await receiptsApi.upload(croppedBlob, 'receipt.jpg')
               if (retakeExpenseId) {
-                await expensesApi.update(retakeExpenseId, { receipt_id: receipt.id })
+                const updatedExpense = await expensesApi.update(retakeExpenseId, { receipt_id: receipt.id })
+                queryClient.setQueryData(['expense', retakeExpenseId], updatedExpense)
                 if (retakeOldReceiptId) await receiptsApi.delete(retakeOldReceiptId).catch(() => null)
                 clearRetake()
                 queryClient.invalidateQueries({ queryKey: ['receipts'] })
                 queryClient.invalidateQueries({ queryKey: ['expenses'] })
+                queryClient.invalidateQueries({ queryKey: ['expense', retakeExpenseId] })
                 setBlob(null)
                 navigate(`/expense/${retakeExpenseId}`)
               } else {
