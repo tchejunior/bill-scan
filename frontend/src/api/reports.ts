@@ -46,4 +46,10 @@ export const reportsApi = {
 
   pdfUrl: (fromDate: string, toDate: string) =>
     `/api/reports/pdf?from_date=${fromDate}&to_date=${toDate}`,
+
+  markReported: (fromDate: string, toDate: string) =>
+    apiFetch<{ marked: number }>(
+      `/reports/mark-reported?from_date=${fromDate}&to_date=${toDate}`,
+      { method: 'POST' },
+    ),
 }

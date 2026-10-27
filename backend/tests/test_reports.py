@@ -43,3 +43,29 @@ def test_pdf_report_returns_bytes(auth_client):
 def test_pdf_report_requires_auth(client):
     resp = client.get("/api/reports/pdf?from_date=2026-01-01&to_date=2026-12-31")
     assert resp.status_code == 401
+
+
+def test_mark_reported_flags_expenses_in_range(auth_client):
+    in_range = str(date(2021, 3, 10))
+    out_of_range = str(date(2021, 6, 10))
+    in_id = auth_client.post("/api/expenses", json={
+        "merchant": "A", "date": in_range, "amount": 10000,
+    }).json()["id"]
+    out_id = auth_client.post("/api/expenses", json={
+        "merchant": "B", "date": out_of_range, "amount": 5000,
+    }).json()["id"]
+
+    resp = auth_client.post(
+        f"/api/reports/mark-reported?from_date={in_range}&to_date={in_range}"
+    )
+    assert resp.status_code == 200
+    assert resp.json()["marked"] == 1
+
+    by_id = {e["id"]: e for e in auth_client.get("/api/expenses").json()}
+    assert by_id[in_id]["reported"] is True
+    assert by_id[out_id]["reported"] is False
+
+
+def test_mark_reported_requires_auth(client):
+    resp = client.post("/api/reports/mark-reported?from_date=2026-01-01&to_date=2026-12-31")
+    assert resp.status_code == 401

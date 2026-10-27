@@ -46,6 +46,7 @@ export function ExpenseTable({ expenses, duplicateIds }: {
               <td className="px-4 py-2.5">
                 <span className="font-medium">{e.merchant || 'Sem nome'}</span>
                 {e.status === 'reviewed' && <span className="ml-1.5" style={{ color: '#34c759' }}>✓</span>}
+                {e.reported && <span className="ml-1.5" style={{ color: '#0a84ff' }}>📤</span>}
                 {duplicateIds.has(e.id) && <span className="ml-1.5" style={{ color: '#ff9f0a' }}>⚠</span>}
               </td>
               <td className="px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>

@@ -22,3 +22,7 @@ class ReportSummary(BaseModel):
     expense_count: int
     by_category: list[CategoryBreakdown]
     by_payment_method: list[PaymentBreakdown]
+
+
+class MarkReportedResult(BaseModel):
+    marked: int

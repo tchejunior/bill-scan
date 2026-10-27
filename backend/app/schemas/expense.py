@@ -45,6 +45,7 @@ class ExpenseRead(BaseModel):
     line_items: Optional[list] = None
     is_manual: bool
     status: str
+    reported: bool
     created_at: _dt.datetime
     updated_at: _dt.datetime
 
@@ -67,6 +68,7 @@ class ExpenseRead(BaseModel):
             'line_items': v.line_items,
             'is_manual': v.is_manual,
             'status': v.status,
+            'reported': v.reported,
             'created_at': v.created_at,
             'updated_at': v.updated_at,
         }

@@ -19,12 +19,13 @@ export interface Expense {
   line_items: LineItem[] | null
   is_manual: boolean
   status: string
+  reported: boolean
 }
 
 export const expensesApi = {
   list: () => apiFetch<Expense[]>('/expenses'),
   get: (id: string) => apiFetch<Expense>(`/expenses/${id}`),
-  create: (body: Omit<Expense, 'id' | 'receipt_id' | 'category' | 'payment_method' | 'line_items' | 'is_manual' | 'status'> & { category?: string; payment_method?: string; receipt_id?: string }) =>
+  create: (body: Omit<Expense, 'id' | 'receipt_id' | 'category' | 'payment_method' | 'line_items' | 'is_manual' | 'status' | 'reported'> & { category?: string; payment_method?: string; receipt_id?: string }) =>
     apiFetch<Expense>('/expenses', { method: 'POST', body: JSON.stringify(body) }),
   update: (id: string, body: Partial<Omit<Expense, 'id'>>) =>
     apiFetch<Expense>(`/expenses/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),

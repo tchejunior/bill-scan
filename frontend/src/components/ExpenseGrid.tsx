@@ -33,6 +33,7 @@ export function ExpenseGrid({ expenses, duplicateIds }: {
             <div className="flex items-center gap-1 text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
               {e.status === 'reviewed' && <span style={{ color: '#34c759' }}>✓</span>}
               <span className="truncate">{e.merchant || 'Sem nome'}</span>
+              {e.reported && <span style={{ color: '#0a84ff' }}>📤</span>}
               {duplicateIds.has(e.id) && <span style={{ color: '#ff9f0a' }}>⚠</span>}
             </div>
             <div className="flex justify-between items-center mt-1">

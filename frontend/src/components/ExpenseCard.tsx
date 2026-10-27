@@ -62,6 +62,7 @@ export function ExpenseCard({ expense, isDuplicate }: { expense: Expense; isDupl
 
   const aiProcessed = !!expense.receipt_id && !expense.is_manual && !!expense.merchant
   const reviewed = expense.status === 'reviewed'
+  const reported = expense.reported
 
   return (
     <div
@@ -96,6 +97,14 @@ export function ExpenseCard({ expense, isDuplicate }: { expense: Expense; isDupl
               style={{ background: 'rgba(52,199,89,0.15)', color: '#34c759', lineHeight: 1 }}
             >
               ✨ IA
+            </span>
+          )}
+          {reported && (
+            <span
+              className="text-xs font-semibold px-1.5 py-0.5 rounded"
+              style={{ background: 'rgba(10,132,255,0.15)', color: '#0a84ff', lineHeight: 1 }}
+            >
+              📤 Enviado
             </span>
           )}
         </div>

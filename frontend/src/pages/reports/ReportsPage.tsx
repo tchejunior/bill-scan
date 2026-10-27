@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { reportsApi } from '@/api/reports'
 import { formatBRL } from '@/lib/utils'
@@ -42,6 +42,7 @@ export function ReportsPage() {
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const [showCustom, setShowCustom] = useState(false)
+  const [markOnExport, setMarkOnExport] = useState(true)
 
   const { from, to } = showCustom && customFrom && customTo
     ? { from: customFrom, to: customTo }
@@ -51,6 +52,12 @@ export function ReportsPage() {
     queryKey: ['reports/summary', from, to],
     queryFn: () => reportsApi.summary(from, to),
     enabled: !!from && !!to,
+  })
+
+  const queryClient = useQueryClient()
+  const markReported = useMutation({
+    mutationFn: () => reportsApi.markReported(from, to),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['expenses'] }),
   })
 
   return (
@@ -195,14 +202,32 @@ export function ReportsPage() {
                 </span>
               </div>
 
+              <label className="flex items-center gap-2 mt-4 text-sm cursor-pointer" style={{ color: 'var(--text-muted)' }}>
+                <input
+                  type="checkbox"
+                  checked={markOnExport}
+                  onChange={(e) => setMarkOnExport(e.target.checked)}
+                  className="accent-current"
+                  style={{ accentColor: 'var(--accent)' }}
+                />
+                Marcar despesas do período como enviadas
+              </label>
+
               <a
                 href={reportsApi.pdfUrl(from, to)}
                 download
-                className="block w-full mt-4 py-3 rounded-xl text-center text-sm font-bold text-white"
+                onClick={() => { if (markOnExport) markReported.mutate() }}
+                className="block w-full mt-3 py-3 rounded-xl text-center text-sm font-bold text-white"
                 style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-hover))' }}
               >
                 ⬇ Exportar PDF
               </a>
+
+              {markReported.isSuccess && markReported.data.marked > 0 && (
+                <p className="mt-2 text-center text-xs" style={{ color: '#0a84ff' }}>
+                  📤 {markReported.data.marked} {markReported.data.marked === 1 ? 'despesa marcada' : 'despesas marcadas'} como enviada{markReported.data.marked === 1 ? '' : 's'}
+                </p>
+              )}
             </div>
           )
 

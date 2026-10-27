@@ -10,7 +10,7 @@ from app.database import get_db
 from app.models.expense import Expense
 from app.models.receipt import Receipt
 from app.models.user import User
-from app.schemas.report import CategoryBreakdown, PaymentBreakdown, ReportSummary
+from app.schemas.report import CategoryBreakdown, MarkReportedResult, PaymentBreakdown, ReportSummary
 from app.services.storage import storage
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
@@ -71,6 +71,22 @@ def summary(
             for r in by_pm
         ],
     )
+
+
+@router.post("/mark-reported", response_model=MarkReportedResult)
+def mark_reported(
+    from_date: date = Query(..., alias="from_date"),
+    to_date: date = Query(..., alias="to_date"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    marked = (
+        _base_query(db, current_user, from_date, to_date)
+        .filter(Expense.reported.is_(False))
+        .update({Expense.reported: True}, synchronize_session=False)
+    )
+    db.commit()
+    return MarkReportedResult(marked=marked)
 
 
 @router.get("/pdf")
