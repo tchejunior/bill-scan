@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models.expense import Expense
 from app.models.receipt import Receipt, ReceiptStatus
 from app.models.user import User
-from app.schemas.expense import ExpenseCreate, ExpenseRead, ExpenseUpdate
+from app.schemas.expense import ExpenseCreate, ExpenseRead, ExpenseUpdate, ReportedUpdate
 
 router = APIRouter(prefix="/api/expenses", tags=["expenses"])
 
@@ -102,6 +102,20 @@ def update_expense(
         if receipt and receipt.status in (ReceiptStatus.partial, ReceiptStatus.failed):
             receipt.status = ReceiptStatus.processed
             receipt.processed_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(expense)
+    return expense
+
+
+@router.patch("/{expense_id}/reported", response_model=ExpenseRead)
+def set_reported(
+    expense_id: uuid_lib.UUID,
+    body: ReportedUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    expense = _get_owned_expense(expense_id, current_user, db)
+    expense.reported = body.reported
     db.commit()
     db.refresh(expense)
     return expense

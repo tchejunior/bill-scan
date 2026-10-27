@@ -176,6 +176,14 @@ function ExpenseEditor({ expense, receipt, allExpenses, isDesktop, layout }: Exp
     onError: (err) => setError(err instanceof Error ? err.message : 'Erro ao salvar'),
   })
 
+  const reportedMutation = useMutation({
+    mutationFn: (reported: boolean) => expensesApi.setReported(expense.id, reported),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['expense', expense.id] })
+    },
+  })
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const parsedAmount = parseFloat(amount)
@@ -324,6 +332,18 @@ function ExpenseEditor({ expense, receipt, allExpenses, isDesktop, layout }: Exp
       >
         {mutation.isPending ? 'Salvando…' : 'Salvar'}
       </Button>
+
+      <button
+        type="button"
+        onClick={() => reportedMutation.mutate(!expense.reported)}
+        disabled={reportedMutation.isPending}
+        className="w-full py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60"
+        style={expense.reported
+          ? { background: 'rgba(10,132,255,0.15)', color: '#0a84ff' }
+          : { background: 'var(--bg-card)', color: 'var(--text)', border: '1px solid var(--border)' }}
+      >
+        {expense.reported ? '📤 Enviado · desmarcar' : '📤 Marcar como enviado'}
+      </button>
 
       <button
         type="button"

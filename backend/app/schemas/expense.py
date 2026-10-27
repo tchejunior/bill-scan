@@ -29,6 +29,10 @@ class ExpenseUpdate(BaseModel):
     status: Optional[str] = None
 
 
+class ReportedUpdate(BaseModel):
+    reported: bool
+
+
 class ExpenseRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

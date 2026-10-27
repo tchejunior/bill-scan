@@ -47,6 +47,25 @@ def test_update_expense(auth_client):
     assert resp.json()["vendor"] == "New Name"
 
 
+def test_set_reported_toggles_flag_without_touching_status(auth_client):
+    create = auth_client.post("/api/expenses", json={
+        "merchant": "Shop", "date": str(date.today()), "amount": 3000,
+    })
+    expense = create.json()
+    expense_id = expense["id"]
+    assert expense["reported"] is False
+    status_before = expense["status"]
+
+    resp = auth_client.patch(f"/api/expenses/{expense_id}/reported", json={"reported": True})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["reported"] is True
+    assert body["status"] == status_before
+
+    resp = auth_client.patch(f"/api/expenses/{expense_id}/reported", json={"reported": False})
+    assert resp.json()["reported"] is False
+
+
 def test_delete_expense(auth_client):
     create = auth_client.post("/api/expenses", json={
         "vendor": "Delete Me", "date": str(date.today()), "total_amount": "5.00"

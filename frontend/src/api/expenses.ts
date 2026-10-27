@@ -29,6 +29,8 @@ export const expensesApi = {
     apiFetch<Expense>('/expenses', { method: 'POST', body: JSON.stringify(body) }),
   update: (id: string, body: Partial<Omit<Expense, 'id'>>) =>
     apiFetch<Expense>(`/expenses/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  setReported: (id: string, reported: boolean) =>
+    apiFetch<Expense>(`/expenses/${id}/reported`, { method: 'PATCH', body: JSON.stringify({ reported }) }),
   delete: (id: string) =>
     apiFetch<void>(`/expenses/${id}`, { method: 'DELETE' }),
 }
